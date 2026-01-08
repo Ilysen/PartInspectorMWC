@@ -1,6 +1,6 @@
 ﻿using HutongGames.PlayMaker;
 
-namespace Ceres.PartInspector.Trackers
+namespace Ceres.PartInspectorMWC.Trackers
 {
 	/// <summary>
 	/// Tracks quantity of items remaining, for things like spark plug boxes and fuse packages.

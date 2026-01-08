@@ -1,4 +1,4 @@
-﻿namespace Ceres.PartInspector.Trackers
+﻿namespace Ceres.PartInspectorMWC.Trackers
 {
 	/// <summary>
 	/// Tracks how worn-down a spark plug is.

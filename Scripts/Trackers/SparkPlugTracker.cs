@@ -1,7 +1,7 @@
 ﻿using HutongGames.PlayMaker;
 using UnityEngine;
 
-namespace Ceres.PartInspector.Trackers
+namespace Ceres.PartInspectorMWC.Trackers
 {
 	/// <summary>
 	/// Tracks how worn-down a spark plug is.
@@ -29,7 +29,7 @@ namespace Ceres.PartInspector.Trackers
 		{
 			string newText;
 			float effectiveWear = GetWearPercentage();
-			switch (PartInspector.PartDisplayPrecision.GetSelectedItemIndex())
+			switch (Ceres.PartInspectorMWC.PartDisplayPrecision.GetSelectedItemIndex())
 			{
 				case 1: // General description
 					string descriptor;

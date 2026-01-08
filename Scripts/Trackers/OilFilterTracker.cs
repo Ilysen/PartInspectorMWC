@@ -1,7 +1,7 @@
 ﻿using HutongGames.PlayMaker;
 using UnityEngine;
 
-namespace Ceres.PartInspector.Trackers
+namespace Ceres.PartInspectorMWC.Trackers
 {
 	/// <summary>
 	/// Tracks how dirty an oil filter is.
@@ -28,7 +28,7 @@ namespace Ceres.PartInspector.Trackers
 		{
 			string newText;
 			float effectiveFilth = _dirtFsm.GetFsmFloat("Dirt").Value;
-			switch (PartInspector.PartDisplayPrecision.GetSelectedItemIndex())
+			switch (Ceres.PartInspectorMWC.PartDisplayPrecision.GetSelectedItemIndex())
 			{
 				case 1: // General description
 					if (effectiveFilth >= 80)

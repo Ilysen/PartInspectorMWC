@@ -1,7 +1,7 @@
 ﻿using HutongGames.PlayMaker;
 using UnityEngine;
 
-namespace Ceres.PartInspector.Trackers
+namespace Ceres.PartInspectorMWC.Trackers
 {
 	/// <summary>
 	/// Tracks the exact integrity of the assigned part using the provided information. Broken parts will display as broken.
@@ -52,7 +52,7 @@ namespace Ceres.PartInspector.Trackers
 				newText = "Broken";
 			else
 			{
-				switch (PartInspector.PartDisplayPrecision.GetSelectedItemIndex())
+				switch (Ceres.PartInspectorMWC.PartDisplayPrecision.GetSelectedItemIndex())
 				{
 					case 1: // General description
 						string descriptor;

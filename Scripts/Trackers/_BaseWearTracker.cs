@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace Ceres.PartInspector.Trackers
+namespace Ceres.PartInspectorMWC.Trackers
 {
 	/// <summary>
 	/// Base wear tracker class with shared logic.

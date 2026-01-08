@@ -1,4 +1,4 @@
-﻿using Ceres.PartInspector.Trackers;
+﻿using Ceres.PartInspectorMWC.Trackers;
 using HutongGames.PlayMaker;
 using MSCLoader;
 using System;
@@ -8,12 +8,12 @@ using UnityEngine;
 
 namespace Ceres.PartInspector
 {
-	public class PartInspector : Mod
+	public class PartInspectorMWC : Mod
 	{
-		public override string ID => "Ceres_PartInspector";
+		public override string ID => "Ceres_PartInspectorMWC";
 		public override string Name => "Part Inspector";
 		public override string Author => "Ceres et al.";
-		public override string Version => "1.3";
+		public override string Version => "0.1";
 		public override string Description => "Inspect your stuff for integrity, condition, and dirtiness.";
 
 		#region Mod setup and settings
@@ -43,28 +43,28 @@ namespace Ceres.PartInspector
 		{
 			Color headingColor = new Color(0.1f, 0.1f, 0.1f);
 
-			Settings.AddHeader(this, "Interface", headingColor, Color.white);
-			DisplayLocation = Settings.AddDropDownList(this, "displayLocation", "Display location",
+			Settings.AddHeader("Interface", headingColor, Color.white);
+			DisplayLocation = Settings.AddDropDownList("displayLocation", "Display location",
 				new string[] { "Part name", "Interaction text" }, 0, RefreshDisplayGUI);
-			PartDisplayPrecision = Settings.AddDropDownList(this, "displayPrecision", "Part inspection precision",
+			PartDisplayPrecision = Settings.AddDropDownList("displayPrecision", "Part inspection precision",
 				new string[] { "Show exact information", "Show general description", "Show broken/not broken" }, 1);
-			ItemDisplayPrecision = Settings.AddDropDownList(this, "itemDisplayPrecision", "Item inspection precision",
+			ItemDisplayPrecision = Settings.AddDropDownList("itemDisplayPrecision", "Item inspection precision",
 				new string[] { "Show exact information", "Show general description" }, 1);
-			TextUpdateFrequency = Settings.AddSlider(this, "updateFrequency", "Text update frequency",
+			TextUpdateFrequency = Settings.AddSlider("updateFrequency", "Text update frequency",
 				0f, 10f, 10f, RebuildDisplays);
 
-			Settings.AddHeader(this, "Enable specific trackers", headingColor, Color.white);
-			EnableBasicTrackers = Settings.AddCheckBox(this, "enablePartTrackers", "Car part condition", true);
-			EnableSimpleTrackers = Settings.AddCheckBox(this, "enableSimpleTrackers", "Broken or intact (block and oil pans)", true);
-			EnableAlternatorBeltTrackers = Settings.AddCheckBox(this, "enableAlternatorBeltTrackers", "Alternator belt wear", true);
-			EnableSparkPlugTrackers = Settings.AddCheckBox(this, "enableSparkPlugTrackers", "Spark plug wear", true);
-			EnableOilFilterTrackers = Settings.AddCheckBox(this, "enableOilFilterTrackers", "Oil filter dirtiness", true);
-			EnableFluidContainerTrackers = Settings.AddCheckBox(this, "enableFluidContainerTrackers", "Fluid container fullness", true);
-			EnableFullnessContainerTrackers = Settings.AddCheckBox(this, "enableOtherFullnessTrackers", "Coffee and charcoal fullnes", true);
-			Settings.AddText(this, "Includes brake fluid, motor oil, two-stroke fuel, and coolant canisters.");
+			Settings.AddHeader("Enable specific trackers", headingColor, Color.white);
+			EnableBasicTrackers = Settings.AddCheckBox("enablePartTrackers", "Car part condition", true);
+			EnableSimpleTrackers = Settings.AddCheckBox("enableSimpleTrackers", "Broken or intact (block and oil pans)", true);
+			EnableAlternatorBeltTrackers = Settings.AddCheckBox("enableAlternatorBeltTrackers", "Alternator belt wear", true);
+			EnableSparkPlugTrackers = Settings.AddCheckBox("enableSparkPlugTrackers", "Spark plug wear", true);
+			EnableOilFilterTrackers = Settings.AddCheckBox("enableOilFilterTrackers", "Oil filter dirtiness", true);
+			EnableFluidContainerTrackers = Settings.AddCheckBox("enableFluidContainerTrackers", "Fluid container fullness", true);
+			EnableFullnessContainerTrackers = Settings.AddCheckBox("enableOtherFullnessTrackers", "Coffee and charcoal fullnes", true);
+			Settings.AddText("Includes brake fluid, motor oil, two-stroke fuel, and coolant canisters.");
 
-			Settings.AddHeader(this, "Debug", headingColor, Color.white);
-			VerboseLogging = Settings.AddCheckBox(this, "verboseLogging", "Verbose logging", false);
+			Settings.AddHeader("Debug", headingColor, Color.white);
+			VerboseLogging = Settings.AddCheckBox("verboseLogging", "Verbose logging", false);
 		}
 		#endregion
 
