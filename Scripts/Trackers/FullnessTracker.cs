@@ -74,7 +74,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 			float fullnessLevel = GetWearPercentage();
 			if (fullnessLevel <= 0)
 				return;
-			switch (PartInspectorScript.ItemDisplayPrecision.GetSelectedItemIndex())
+			switch (PartInspectorScript.SettingItemDisplayPrecision.GetSelectedItemIndex())
 			{
 				case 1: // General description
 					if (fullnessLevel >= 100)

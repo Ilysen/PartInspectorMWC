@@ -45,8 +45,8 @@ namespace Ceres.PartInspectorMWC.Trackers
 			object val = null;
 			if (_variantKeyType == typeof(string))
 				val = FsmVariables.GetFsmString(_variantKey).Value;
-			else if (_variantKeyType == typeof(float))
-				val = FsmVariables.GetFsmFloat(_variantKey).Value;
+			else if (_variantKeyType == typeof(int))
+				val = FsmVariables.GetFsmInt(_variantKey).Value;
 			if (val == null)
 				return;
 			string text = _variants[val];

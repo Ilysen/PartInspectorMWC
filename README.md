@@ -10,12 +10,23 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 
 # INDEV
 #### Version 0.1 (MWC RE-RELEASE)
-* Heavily refactored for a My Winter Car version:
-	* New items and car parts work properly.
-	* Added a new tracker type that distinguishes an object's variant in its display name.
-		* Instrument panels: Model type (standard, clock, tachometer)
-		* Grilles: Trim (L/GT, LX, SLX, Facelift)
+* Heavily refactored for My Winter Car:
+	* All new items and car parts should work properly.
+	* Overhauled the settings menu: 
+		* "Car part condition", "Broken or intact", "Alternator belt wear", and "Spark plug wear" are all now tied to "Show car part condition".
+		* "Fluid container fullness" and "Coffee and charcoal fullness" are now both tied to "Show container fullness".
+		* "Verbose logging" is now split up into multiple different logging levels that can be individually toggled.
+		* Each of the trackers now has some text explaining what they do.
+		* Reworded basically everything.
+	* Added a missing config option for quantity trackers (used for R20 batteries and fuse packages).
+	* Added a new tracker type that shows an object's variant in its display name:
+		* Instrument panels: Standard, clock, tachometer
+		* Grilles: L/GT, LX, SLX, facelift
 		* Bumper: Facelift or pre-facelift
 		* Brake lines/master cylinder: Standard or power
 		* Exhaust pipe front: Standard or GT
-	* Fixed a long-standing bug where inspection results were not visible when looking at objects from specific angles. Results are now always displayed when the object's name is visible!
+	* Changed the thresholds for standard part wear to encourage more caution:
+		* Shoddy: Now 35% to 25% (previously 35% to 20%)
+		* Bad: Now 25% to 15% (previously 20% to 10%)
+		* Terrible: Now 15% and below (previously 10% and below)
+	* Fixed a long-standing bug where where looking at objects from specific angles wouldn't consistently inspect them. Results are now always displayed whenever the object's name is visible.

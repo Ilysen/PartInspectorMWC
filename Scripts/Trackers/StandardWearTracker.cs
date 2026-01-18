@@ -18,7 +18,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 				newText = "Broken";
 			else
 			{
-				switch (PartInspectorScript.PartDisplayPrecision.GetSelectedItemIndex())
+				switch (PartInspectorScript.SettingDisplayPrecision.GetSelectedItemIndex())
 				{
 					case 1: // General description
 						string descriptor;
@@ -32,9 +32,9 @@ namespace Ceres.PartInspectorMWC.Trackers
 							descriptor = "decent";
 						else if (partWear >= 35)
 							descriptor = "shoddy";
-						else if (partWear >= 20)
+						else if (partWear >= 25)
 							descriptor = "poor";
-						else if (partWear >= 10)
+						else if (partWear >= 15)
 							descriptor = "bad";
 						else
 							descriptor = "terrible";

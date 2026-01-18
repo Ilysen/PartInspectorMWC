@@ -22,19 +22,15 @@ namespace Ceres.PartInspectorMWC
 		#endregion
 
 		#region Mod setup and settings
-		internal static SettingsDropDownList DisplayLocation;
-		internal static SettingsDropDownList PartDisplayPrecision;
-		internal static SettingsDropDownList ItemDisplayPrecision;
-		internal static SettingsSlider TextUpdateFrequency;
+		internal static SettingsDropDownList SettingDisplayLocation;
+		internal static SettingsDropDownList SettingDisplayPrecision;
+		internal static SettingsDropDownList SettingItemDisplayPrecision;
+		internal static SettingsSliderInt SettingTextUpdateFrequency;
 
-		internal static SettingsCheckBox EnableBasicTrackers;
-		internal static SettingsCheckBox EnableSimpleTrackers;
-		internal static SettingsCheckBox EnableSparkPlugTrackers;
-		internal static SettingsCheckBox EnableOilFilterTrackers;
-		internal static SettingsCheckBox EnableFluidContainerTrackers;
-		internal static SettingsCheckBox EnableFullnessContainerTrackers;
-		internal static SettingsCheckBox EnableQuantityTrackers;
-		internal static SettingsCheckBox EnableObjectVariantTrackers;
+		internal static SettingsCheckBox SettingShowCarPartCondition;
+		internal static SettingsCheckBox SettingShowContainerFullness;
+		internal static SettingsCheckBox SettingShowPackageQuantity;
+		internal static SettingsCheckBox SettingShowObjectVariants;
 
 		internal static SettingsCheckBox SettingLogVerification;
 		internal static SettingsCheckBox SettingLogNewTrackers;
@@ -51,30 +47,30 @@ namespace Ceres.PartInspectorMWC
 			Color headingColor = new Color(0.1f, 0.1f, 0.1f);
 
 			Settings.AddHeader("Interface", headingColor, Color.white);
-			DisplayLocation = Settings.AddDropDownList("displayLocation", "Display location",
-				new string[] { "Part name", "Interaction text" }, 0, RefreshDisplayGUI);
-			PartDisplayPrecision = Settings.AddDropDownList("displayPrecision", "Part inspection precision",
+			SettingDisplayLocation = Settings.AddDropDownList("displayLocation", "Where to display information",
+				new string[] { "In the item's name (recommended)", "In interaction text" }, 0, RefreshDisplayGUI);
+			SettingDisplayPrecision = Settings.AddDropDownList("displayPrecision", "Part inspection precision",
 				new string[] { "Show exact information", "Show general description", "Show broken/not broken" }, 1);
-			ItemDisplayPrecision = Settings.AddDropDownList("itemDisplayPrecision", "Item inspection precision",
+			SettingItemDisplayPrecision = Settings.AddDropDownList("itemDisplayPrecision", "Item inspection precision",
 				new string[] { "Show exact information", "Show general description" }, 1);
-			TextUpdateFrequency = Settings.AddSlider("updateFrequency", "Text update frequency",
-				0f, 10f, 10f, RebuildDisplays);
+			SettingTextUpdateFrequency = Settings.AddSlider("updateFrequency", "Text update frequency<color=yellow>*</color>",
+				1, 10, 10, RebuildDisplays);
+			Settings.AddText("<color=yellow>* Lowering this might have an impact on performance. Only use it if you find the default rate to be too sluggish.</color>");
 
-			Settings.AddHeader("Enable specific trackers", headingColor, Color.white);
-			EnableBasicTrackers = Settings.AddCheckBox("enablePartTrackers", "Car part condition", true);
-			EnableSimpleTrackers = Settings.AddCheckBox("enableSimpleTrackers", "Broken or intact (block and oil pans)", true);
-			EnableSparkPlugTrackers = Settings.AddCheckBox("enableSparkPlugTrackers", "Spark plug wear", true);
-			EnableOilFilterTrackers = Settings.AddCheckBox("enableOilFilterTrackers", "Oil filter dirtiness", true);
-			EnableFluidContainerTrackers = Settings.AddCheckBox("enableFluidContainerTrackers", "Fluid container fullness", true);
-			Settings.AddText("Includes brake fluid, motor oil, two-stroke fuel, transmission fluid, and coolant.");
-			EnableFullnessContainerTrackers = Settings.AddCheckBox("enableOtherFullnessTrackers", "Coffee and charcoal fullness", true);
-			EnableQuantityTrackers = Settings.AddCheckBox("enableQuantityTrackers", "Battery/fuse quantity", true);
-			EnableObjectVariantTrackers = Settings.AddCheckBox("enableObjectVariants", "Identify object variants", true);
-			Settings.AddText("A part's variant/model/etc. will be included in its displayed name; instrument panels, grilles, and so on.");
+			Settings.AddHeader("Trackers", headingColor, Color.white);
+			SettingShowCarPartCondition = Settings.AddCheckBox("showCarPartCondition", "Show car part condition", true);
+			Settings.AddText("Includes every car part that can wear down, get dirty, or be broken.");
+			SettingShowContainerFullness = Settings.AddCheckBox("showContainerFullness", "Show container fullness", true);
+			Settings.AddText("Includes fluids (motor oil, coolant, etc.) as well as solids (ground coffee and grill charcoal).");
+			SettingShowPackageQuantity = Settings.AddCheckBox("showPackageQuantity", "Show package quantity", true);
+			Settings.AddText("For R20 batteries and fuse boxes: Displays the amount left in the package.");
+			SettingShowObjectVariants = Settings.AddCheckBox("showObjectVariants", "Show object variants", true);
+			Settings.AddText("A part's variant will be shown in its display name. For things like instrument panels, grilles, and brake lines.");
 
 			Settings.AddHeader("Logging", headingColor, Color.white);
-			SettingLogVerification = Settings.AddCheckBox("logVerification", "Log object verification", false);
+			Settings.AddText("If you're running into bugs, these settings will put extra info into your log that'll help the author diagnose the issues. Keep them all off for regular play, but please turn them on when submitting a bug report!");
 			SettingLogNewTrackers = Settings.AddCheckBox("logNewTrackers", "Log new trackers", false);
+			SettingLogVerification = Settings.AddCheckBox("logVerification", "Log object verification <color=yellow>(warning: laggy)</color>", false);
 		}
 		#endregion
 
@@ -347,7 +343,7 @@ namespace Ceres.PartInspectorMWC
 		/// <summary>
 		/// Updates the value of <see cref="_displayGui"/> based on user settings.
 		/// </summary>
-		private void RefreshDisplayGUI() => _displayGui = PlayMakerGlobals.Instance.Variables.FindFsmString(DisplayLocation.GetSelectedItemIndex() == 0 ? "PickedPart" : "GUIinteraction");
+		private void RefreshDisplayGUI() => _displayGui = PlayMakerGlobals.Instance.Variables.FindFsmString(SettingDisplayLocation.GetSelectedItemIndex() == 0 ? "PickedPart" : "GUIinteraction");
 
 		/// <summary>
 		/// Simple wrapper to adjust relevant values when update frequency settings are changed.
@@ -355,7 +351,7 @@ namespace Ceres.PartInspectorMWC
 		private void RebuildDisplays()
 		{
 			_updateTimer = 0f;
-			_timeBetweenUpdates = TextUpdateFrequency.GetValue();
+			_timeBetweenUpdates = SettingTextUpdateFrequency.GetValue();
 		}
 
 		/// <summary>
@@ -380,42 +376,44 @@ namespace Ceres.PartInspectorMWC
 			switch (tt)
 			{
 				case TrackerType.Standard:
-					if (!EnableBasicTrackers.GetValue())
+					if (!SettingShowCarPartCondition.GetValue())
 						break;
 					newTrackerType = typeof(StandardWearTracker);
 					break;
 				case TrackerType.Simple:
-					if (!EnableSimpleTrackers.GetValue())
+					if (!SettingShowCarPartCondition.GetValue())
 						break;
 					newTrackerType = typeof(SimpleWearTracker);
 					break;
 				case TrackerType.OilFilter:
-					if (!EnableOilFilterTrackers.GetValue())
+					// realistically I can't imagine a case of someone wanting to know car parts but *not* oil filters, so
+					if (!SettingShowCarPartCondition.GetValue())
 						break;
 					newTrackerType = typeof(OilFilterTracker);
 					break;
 				case TrackerType.SparkPlug:
-					if (!EnableSparkPlugTrackers.GetValue())
+					// ditto
+					if (!SettingShowCarPartCondition.GetValue())
 						break;
 					newTrackerType = typeof(SparkPlugTracker);
 					break;
 				case TrackerType.Fullness:
 					FullnessInfo fi = (FullnessInfo)trackerInfo;
-					if ((fi.DisplayAsFluid && !EnableFluidContainerTrackers.GetValue()) || (!fi.DisplayAsFluid && !EnableFullnessContainerTrackers.GetValue()))
+					if (!SettingShowContainerFullness.GetValue())
 						break;
 					FullnessTracker ft = gameObj.AddComponent<FullnessTracker>();
 					ft.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, fi.FsmName).FsmVariables, fi);
 					bwt = ft;
 					break;
 				case TrackerType.Quantity:
-					if (!EnableQuantityTrackers.GetValue())
+					if (!SettingShowPackageQuantity.GetValue())
 						break;
 					QuantityTracker qt = gameObj.AddComponent<QuantityTracker>(); // qt uwu
 					qt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Use").FsmVariables);
 					bwt = qt;
 					break;
 				case TrackerType.Variant:
-					if (!EnableObjectVariantTrackers.GetValue())
+					if (!SettingShowObjectVariants.GetValue())
 						break;
 					VariantTracker vt = gameObj.AddComponent<VariantTracker>();
 					vt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Data").FsmVariables, trackerInfo);

@@ -13,7 +13,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 		{
 			string newText;
 			float effectiveWear = GetWearPercentage();
-			switch (PartInspectorScript.PartDisplayPrecision.GetSelectedItemIndex())
+			switch (PartInspectorScript.SettingDisplayPrecision.GetSelectedItemIndex())
 			{
 				case 1: // General description
 					string descriptor;
