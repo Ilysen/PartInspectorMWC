@@ -23,7 +23,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 		/// </summary>
 		internal virtual void Initialize(string initName, params object[] extraArgs)
 		{
-			InitialName = initName.Replace("(Clone)", "").Replace("(itemx)", "");
+			InitialName = initName.Replace("(Clone)", "").Replace("(itemx)", "").Replace("(VINXX)", "").Replace("(VINX0)", "");
 		}
 
 		/// <summary>

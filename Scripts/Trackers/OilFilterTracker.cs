@@ -28,7 +28,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 		{
 			string newText;
 			float effectiveFilth = _dirtFsm.GetFsmFloat("Dirt").Value;
-			switch (Ceres.PartInspectorMWC.PartDisplayPrecision.GetSelectedItemIndex())
+			switch (PartInspectorScript.PartDisplayPrecision.GetSelectedItemIndex())
 			{
 				case 1: // General description
 					if (effectiveFilth >= 80)

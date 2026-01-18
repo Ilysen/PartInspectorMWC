@@ -4,17 +4,20 @@ using MSCLoader;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using TanjentOGG;
 using UnityEngine;
 
-namespace Ceres.PartInspector
+namespace Ceres.PartInspectorMWC
 {
-	public class PartInspectorMWC : Mod
+	public class PartInspectorScript : Mod
 	{
 		public override string ID => "Ceres_PartInspectorMWC";
 		public override string Name => "Part Inspector";
 		public override string Author => "Ceres et al.";
 		public override string Version => "0.1";
 		public override string Description => "Inspect your stuff for integrity, condition, and dirtiness.";
+		public override Game SupportedGames => Game.MyWinterCar;
 
 		#region Mod setup and settings
 		internal static SettingsDropDownList DisplayLocation;
@@ -24,13 +27,14 @@ namespace Ceres.PartInspector
 
 		internal static SettingsCheckBox EnableBasicTrackers;
 		internal static SettingsCheckBox EnableSimpleTrackers;
-		internal static SettingsCheckBox EnableAlternatorBeltTrackers;
 		internal static SettingsCheckBox EnableSparkPlugTrackers;
 		internal static SettingsCheckBox EnableOilFilterTrackers;
 		internal static SettingsCheckBox EnableFluidContainerTrackers;
 		internal static SettingsCheckBox EnableFullnessContainerTrackers;
+		internal static SettingsCheckBox EnableObjectVariants;
 
-		internal static SettingsCheckBox VerboseLogging;
+		internal static SettingsCheckBox SettingLogVerification;
+		internal static SettingsCheckBox SettingLogNewTrackers;
 
 		public override void ModSetup()
 		{
@@ -56,15 +60,17 @@ namespace Ceres.PartInspector
 			Settings.AddHeader("Enable specific trackers", headingColor, Color.white);
 			EnableBasicTrackers = Settings.AddCheckBox("enablePartTrackers", "Car part condition", true);
 			EnableSimpleTrackers = Settings.AddCheckBox("enableSimpleTrackers", "Broken or intact (block and oil pans)", true);
-			EnableAlternatorBeltTrackers = Settings.AddCheckBox("enableAlternatorBeltTrackers", "Alternator belt wear", true);
 			EnableSparkPlugTrackers = Settings.AddCheckBox("enableSparkPlugTrackers", "Spark plug wear", true);
 			EnableOilFilterTrackers = Settings.AddCheckBox("enableOilFilterTrackers", "Oil filter dirtiness", true);
 			EnableFluidContainerTrackers = Settings.AddCheckBox("enableFluidContainerTrackers", "Fluid container fullness", true);
-			EnableFullnessContainerTrackers = Settings.AddCheckBox("enableOtherFullnessTrackers", "Coffee and charcoal fullnes", true);
+			EnableFullnessContainerTrackers = Settings.AddCheckBox("enableOtherFullnessTrackers", "Coffee and charcoal fullness", true);
 			Settings.AddText("Includes brake fluid, motor oil, two-stroke fuel, and coolant canisters.");
+			EnableObjectVariants = Settings.AddCheckBox("enableObjectVariants", "Identify object variants", true);
+			Settings.AddText("A part's variant/model/etc. will be included in its displayed name; instrument panels, grilles, and so on.");
 
-			Settings.AddHeader("Debug", headingColor, Color.white);
-			VerboseLogging = Settings.AddCheckBox("verboseLogging", "Verbose logging", false);
+			Settings.AddHeader("Logging", headingColor, Color.white);
+			SettingLogVerification = Settings.AddCheckBox("logVerification", "Log object verification", false);
+			SettingLogNewTrackers = Settings.AddCheckBox("logNewTrackers", "Log new trackers", false);
 		}
 		#endregion
 
@@ -78,9 +84,9 @@ namespace Ceres.PartInspector
 			Simple = 2,
 			OilFilter = 3,
 			SparkPlug = 4,
-			AlternatorBelt = 5,
-			Fullness = 6,
-			Quantity = 7
+			Fullness = 5,
+			Quantity = 6,
+			Variant = 7
 		}
 
 		/// <summary>
@@ -94,13 +100,29 @@ namespace Ceres.PartInspector
 			internal string ValueKey;
 			internal float MaxValue;
 			internal bool IsFluid;
+			internal string FsmName;
 
-			internal TrackerInfo(TrackerType TrackerType, string ValueKey = default, float MaxValue = default, bool IsFluid = default)
+			internal TrackerInfo(TrackerType TrackerType, string ValueKey = default, float MaxValue = default, bool IsFluid = default, string FsmName = default)
 			{
 				this.TrackerType = TrackerType;
 				this.ValueKey = ValueKey;
 				this.MaxValue = MaxValue;
 				this.IsFluid = IsFluid;
+				this.FsmName = FsmName;
+			}
+		}
+
+		internal struct VariantInfo
+		{
+			internal Dictionary<object, string> Variants;
+			internal string VariantKey;
+			internal Type VariantKeyType;
+
+			internal VariantInfo(Dictionary<object, string> Variants, Type VariantKeyType, string VariantKey = "Type")
+			{
+				this.Variants = Variants;
+				this.VariantKeyType = VariantKeyType;
+				this.VariantKey = VariantKey;
 			}
 		}
 
@@ -112,51 +134,58 @@ namespace Ceres.PartInspector
 		// msc is so spaghetti. modding is a pathway to abilities some consider to be unnatural
 		private readonly Dictionary<string, object> _partNames = new Dictionary<string, object>
 		{
-			{ "alternator(Clone)", "Alternator" },
-			{ "clutch disc(Clone)", "Clutch" },
-			{ "crankshaft(Clone)", "Crankshaft" },
-			{ "fuel pump(Clone)", "Fuelpump" },
-			{ "gearbox(Clone)", "Gearbox" },
-			{ "head gasket(Clone)", "Headgasket" },
-			{ "piston1(Clone)", "Piston1" },
-			{ "piston2(Clone)", "Piston2" },
-			{ "piston3(Clone)", "Piston3" },
-			{ "piston4(Clone)", "Piston4" },
-			{ "rocker shaft(Clone)", "Rockershaft" },
-			{ "starter(Clone)", "Starter" },
-			{ "water pump(Clone)", "Waterpump" },
+			{ "Engine Block(VINXX)", TrackerType.Simple },
+			{ "Oilpan(VINXX)", TrackerType.Simple },
 
-			{ "block(Clone)", TrackerType.Simple },
-			{ "oilpan(Clone)", TrackerType.Simple },
-			{ "alternator belt(Clone)", TrackerType.AlternatorBelt },
-
+			{ "automatic transmission fluid(itemx)", new TrackerInfo(TrackerType.Fullness, MaxValue: 1f, IsFluid: true ) },
 			{ "brake fluid(itemx)", new TrackerInfo(TrackerType.Fullness, MaxValue: 1f, IsFluid: true ) },
 			{ "two stroke fuel(itemx)", new TrackerInfo(TrackerType.Fullness, MaxValue: 5f, IsFluid: true ) },
 			{ "motor oil(itemx)", new TrackerInfo(TrackerType.Fullness, MaxValue: 4f, IsFluid: true ) },
 			{ "coolant(itemx)", new TrackerInfo(TrackerType.Fullness, MaxValue: 10f, IsFluid: true ) },
 
-			{ "oil filter(Clone)", TrackerType.OilFilter },
+			{ "Oil filter(VINXX)", TrackerType.OilFilter },
 			{ "spark plug(Clone)", TrackerType.SparkPlug },
 			{ "spray can(itemx)", new TrackerInfo(TrackerType.Fullness, MaxValue: 100f ) },
 			{ "mosquito spray(itemx)", new TrackerInfo(TrackerType.Fullness, MaxValue: 100f ) },
-			{ "fire extinguisher(itemx)", new TrackerInfo(TrackerType.Fullness, MaxValue: 100f ) },
+			{ "Fire Extinguisher(VINXX)", new TrackerInfo(TrackerType.Fullness, MaxValue: 100f, FsmName: "Data" ) },
 			{ "ground coffee(itemx)", new TrackerInfo(TrackerType.Fullness, "Ground", 100f ) },
 			{ "grill charcoal(itemx)", new TrackerInfo(TrackerType.Fullness, "Contents", 140f ) },
 
 			{ "spark plug box(Clone)", TrackerType.Quantity },
 			{ "r20 battery box(Clone)", TrackerType.Quantity },
 			{ "fuse package(Clone)", TrackerType.Quantity },
+
+			{ "Brake Lines(VINXX)", new VariantInfo( new Dictionary<object, string>{ 
+				{ 1, "Standard Brakes" }, { 2, "Power Brakes" } 
+			}, typeof(int) ) },
+
+			{ "Brake Master Cylinder(VINXX)", new VariantInfo( new Dictionary<object, string>{
+				{ 1, "Standard Brakes" }, { 2, "Power Brakes" }
+			}, typeof(int) ) },
+
+			{ "Exhaust Pipe Front(VINXX)", new VariantInfo( new Dictionary<object, string>{
+				{ 0, "Standard" }, { 1, "GT" }
+			}, typeof(int) ) },
+
+			{ "Instrument Panel(VINXX)", new VariantInfo( new Dictionary<object, string>{ 
+				{ "A", "Standard" },
+				{ "B", "Clock" },
+				{ "C", "Tachometer" },
+			}, typeof(string), "Model" ) },
+
+			{ "Grille(VINXX)", new VariantInfo( new Dictionary<object, string>{
+				{ "ALL", "Facelift" },
+				{ "L", "L/GT" },
+				{ "LX", "LX" },
+				{ "SLX", "SLX" },
+			}, typeof(string), "Code" ) },
+
+			{ "Bumper(VINXX)", new VariantInfo( new Dictionary<object, string>{
+				{ "A", "Pre-Facelift" },
+				{ "B", "Facelift" },
+				{ "GT", "GT" },
+			}, typeof(string), "Code" ) }
 		};
-
-		/// <summary>
-		/// The FSM variables used to track the Satsuma's part wear. We reference this a lot, so we save it early.
-		/// </summary>
-		private FsmVariables _satsumaVars;
-
-		/// <summary>
-		/// A list of all FSMs used in the motor database. These are where the game keeps track of if parts are installed, broken, etc - but not wear-and-tear, which exists on independently FSMs on each part.
-		/// </summary>
-		private List<PlayMakerFSM> _motorDb;
 
 		/// <summary>
 		/// Every wear tracker in the game world, associated to its game object.
@@ -177,6 +206,24 @@ namespace Ceres.PartInspector
 		/// How many seconds have elapsed since we last updated displays. See <see cref="_timeBetweenUpdates"/> for more info.
 		/// </summary>
 		private float _updateTimer = 0f;
+
+		private FsmVariables _plyCam;
+		#endregion
+
+		#region Debug
+		internal enum ConsoleMessageScope
+		{
+			Core, // Core logic that we always log
+			NewTrackers, // Whenever a new tracker is created
+			Verification // Detailed steps for detecting if a given object is a valid part
+		}
+
+		internal static void PrintToConsole(object Message, ConsoleMessageScope Context)
+		{
+			if (Context == ConsoleMessageScope.Verification && !SettingLogVerification.GetValue())
+				return;
+			ModConsole.Print($"[PI] {Message}");
+		}
 		#endregion
 
 		#region Main functions
@@ -188,17 +235,12 @@ namespace Ceres.PartInspector
 
 		private void Mod_OnLoad()
 		{
-			_satsumaVars = PlayMakerExtensions.GetPlayMaker(GameObject.Find("SATSUMA(557kg, 248)").transform.Find("CarSimulation/MechanicalWear").gameObject, "Data").FsmVariables;
-			_motorDb = new List<PlayMakerFSM>();
 			_wearTrackers = new Dictionary<GameObject, BaseWearTracker>();
-			foreach (PlayMakerFSM fsm in GameObject.Find("Database/DatabaseMotor").GetComponentsInChildren<PlayMakerFSM>())
-			{
-				if (VerboseLogging.GetValue())
-					ModConsole.Print($"Adding fsm to database: {fsm.gameObject.name}");
-				_motorDb.Add(fsm);
-			}
 			RefreshDisplayGUI();
 			RebuildDisplays();
+			ModConsole.Print("Detecting player camera...");
+			_plyCam = GameObject.Find("PLAYER/Pivot/AnimPivot/Camera/FPSCamera/1Hand_Assemble/Hand").GetPlayMaker("PickUp").FsmVariables;
+			ModConsole.Print("Player camera located.");
 			ModConsole.Print($"{Name} version {Version} has been initialized!");
 		}
 
@@ -218,8 +260,7 @@ namespace Ceres.PartInspector
 					// We do this after iteration to avoid runtimes
 					if (kvp.Key == null)
 					{
-						if (VerboseLogging.GetValue())
-							ModConsole.Print($"Found a tracker of type {kvp.Value.GetType()} with a null object. Adding to removal queue.");
+						PrintToConsole($"Found a tracker of type {kvp.Value.GetType()} with a null object. Adding to removal queue.", ConsoleMessageScope.Verification);
 						toRemove.Add(kvp.Key);
 						continue;
 					}
@@ -227,8 +268,7 @@ namespace Ceres.PartInspector
 				}
 				foreach (var obj in toRemove)
 				{
-					if (VerboseLogging.GetValue())
-						ModConsole.Print($"Removing null tracker...");
+					PrintToConsole("Removing null tracker...", ConsoleMessageScope.Verification);
 					_wearTrackers.Remove(obj);
 				}
 			}
@@ -239,32 +279,68 @@ namespace Ceres.PartInspector
 		/// </summary>
 		private void UpdateInspection()
 		{
-			RaycastHit hit = UnifiedRaycast.GetRaycastHit();
-			if (hit.distance <= 1f && hit.collider?.gameObject != null)
+			GameObject lookedObj = _plyCam.GetFsmGameObject("RaycastHitObject")?.Value;
+			if (lookedObj != null)
 			{
-				// If we're aiming at a part designated in _partNames, continue
-				GameObject go = hit.collider.gameObject;
-				if (!_partNames.Keys.Contains(go.name))
+				PrintToConsole($"Checking if valid object: {lookedObj.name}", ConsoleMessageScope.Verification);
+				if (_wearTrackers.Keys.Contains(lookedObj))
 				{
-					// We check for a parent object because some parts (like the water pump) have children with colliders
-					if (!go.transform.parent?.gameObject || !_partNames.Keys.Contains(go.transform.parent.gameObject.name))
-						return;
-					go = go.transform.parent.gameObject;
-				}
-				// Does the object already have a wear tracker? Display the part's integrity data
-				if (_wearTrackers.Keys.Contains(go))
-				{
-					BaseWearTracker wt = _wearTrackers[go];
+					PrintToConsole("-> Object already has a tracker. Returning.", ConsoleMessageScope.Verification);
+					BaseWearTracker wt = _wearTrackers[lookedObj];
 					_displayGui.Value = wt.DisplayText;
+					return;
 				}
-				// Otherwise, add a wear tracker component. We'll use the data next frame
-				// We avoid doing this on load so that this way it's compatible with objects that can show up during gameplay
+
+				// first, check for an FSM named Data, and then check for a field named Wear
+				PlayMakerFSM dataFsm = PlayMakerExtensions.GetPlayMaker(lookedObj, "Data");
+				bool checkForName = false;
+				if (dataFsm == null)
+				{
+					PrintToConsole("-> DOES NOT have Data fsm. Checking name.", ConsoleMessageScope.Verification);
+					checkForName = true;
+				}
 				else
 				{
-					if (VerboseLogging.GetValue())
-						ModConsole.Print($"Detected a valid object named \"{go.name}\". Adding wear tracker.");
-					CreateTrackerForPart(go, _partNames[go.name]);
+					PrintToConsole("-> DOES have Data fsm. Verifying if Wear is present...", ConsoleMessageScope.Verification);
+					FsmFloat wearVal = PlayMakerExtensions.GetVariable<FsmFloat>(dataFsm, "Wear");
+					if (wearVal == null || wearVal.Value == 99)
+					{
+						PrintToConsole("--> Wear variable is not present or is 99 exactly. Checking name instead.", ConsoleMessageScope.Verification);
+						checkForName = true;
+					}
+					else
+					{
+						PrintToConsole($"--> Wear is present! Value: {wearVal.Value}", ConsoleMessageScope.Verification);
+					}
 				}
+
+				// if neither of those are present, then check to see if the object's name is in the list
+				// if it's not, this isn't something with a tracker -- back out
+				if (checkForName)
+				{
+					PrintToConsole("-> Now checking for name in _partNames.", ConsoleMessageScope.Verification);
+					if (!_partNames.Keys.Contains(lookedObj.name))
+					{
+						PrintToConsole("--> Part name is not present. Doing a final check on the parent object...", ConsoleMessageScope.Verification);
+						if (!lookedObj.transform.parent?.gameObject || !_partNames.Keys.Contains(lookedObj.transform.parent.gameObject.name))
+						{
+							PrintToConsole("--> No trackable parent object. Returning.", ConsoleMessageScope.Verification);
+							return;
+						}
+						else
+						{
+							if (_wearTrackers.Keys.Contains(lookedObj.transform.parent.gameObject))
+							{
+								PrintToConsole("--> Parent object was found but already tracked. Returning.", ConsoleMessageScope.Verification);
+								return;
+							}
+							PrintToConsole("--> Parent object is trackable! We are valid!", ConsoleMessageScope.Verification);
+						}
+					}
+				}
+
+				PrintToConsole($"Detected a valid object named \"{lookedObj.name}\". Adding tracker.", ConsoleMessageScope.NewTrackers);
+				CreateTrackerForPart(lookedObj, _partNames.ContainsKey(lookedObj.name) ? _partNames[lookedObj.name] : null);
 			}
 		}
 
@@ -284,18 +360,21 @@ namespace Ceres.PartInspector
 
 		/// <summary>
 		/// Creates a wear tracker component for the provided <see cref="GameObject"/>.
-		/// Info will be taken from <see cref="_partNames"/> to create the component; invalid objects will thus cause this function to throw an error.
 		/// </summary>
-		/// <param name="go">The <see cref="GameObject"/> that will begin being tracked.</param>
-		private void CreateTrackerForPart(GameObject go, object info = null)
+		/// <param name="gameObj">The <see cref="GameObject"/> that will begin being tracked.</param>
+		/// <param name="trackerInfo">A <see cref="TrackerType"/> or <see cref="TrackerInfo"/> for the object.
+		/// If null, it will fall back to <see cref="TrackerType.Standard"/>.</param>
+		private void CreateTrackerForPart(GameObject gameObj, object trackerInfo = null)
 		{
 			TrackerType tt = TrackerType.Standard;
+
 			string key = "Fluid";
 			float max = 1f;
 			bool isFluid = false;
-			if (info is TrackerType t)
+			string fsmName = "Use";
+			if (trackerInfo is TrackerType t)
 				tt = t;
-			else if (info is TrackerInfo ti)
+			else if (trackerInfo is TrackerInfo ti)
 			{
 				tt = ti.TrackerType;
 				isFluid = ti.IsFluid;
@@ -303,34 +382,30 @@ namespace Ceres.PartInspector
 					key = ti.ValueKey;
 				if (ti.MaxValue != default)
 					max = ti.MaxValue;
+				if (ti.FsmName != default)
+					fsmName = ti.FsmName;
 			}
-			FsmVariables dbInfo = null;
-			foreach (PlayMakerFSM fsm in _motorDb)
+			else if (trackerInfo is VariantInfo)
 			{
-				FsmVariables vars = fsm.FsmVariables;
-				if (vars.GetFsmString("UniqueTag").Value == go.name)
-				{
-					dbInfo = vars;
-					break;
-				}
+				tt = TrackerType.Variant;
 			}
+			if (SettingLogVerification.GetValue())
+				ModConsole.Print($"Tracker type: {tt}");
 			BaseWearTracker bwt = null;
 			Type newTrackerType = null;
+			if (SettingLogVerification.GetValue())
+				ModConsole.Print("Choosing new type...");
 			switch (tt)
 			{
 				case TrackerType.Standard:
 					if (!EnableBasicTrackers.GetValue())
 						break;
-					StandardWearTracker swt = go.AddComponent<StandardWearTracker>();
-					swt.Initialize(go.name, "Wear" + _partNames[go.name], _satsumaVars, dbInfo);
-					bwt = swt;
+					newTrackerType = typeof(StandardWearTracker);
 					break;
 				case TrackerType.Simple:
 					if (!EnableSimpleTrackers.GetValue())
 						break;
-					SimpleWearTracker smt = go.AddComponent<SimpleWearTracker>();
-					smt.Initialize(go.name, dbInfo);
-					bwt = smt;
+					newTrackerType = typeof(SimpleWearTracker);
 					break;
 				case TrackerType.OilFilter:
 					if (!EnableOilFilterTrackers.GetValue())
@@ -342,40 +417,46 @@ namespace Ceres.PartInspector
 						break;
 					newTrackerType = typeof(SparkPlugTracker);
 					break;
-				case TrackerType.AlternatorBelt:
-					if (!EnableAlternatorBeltTrackers.GetValue())
-						break;
-					newTrackerType = typeof(AlternatorBeltTracker);
-					break;
 				case TrackerType.Fullness:
 					if ((isFluid && !EnableFluidContainerTrackers.GetValue()) || (!isFluid && !EnableFullnessContainerTrackers.GetValue()))
 						break;
-					FullnessTracker ft = go.AddComponent<FullnessTracker>();
-					ft.Initialize(go.name, PlayMakerExtensions.GetPlayMaker(go, "Use").FsmVariables, max, key, isFluid);
+					FullnessTracker ft = gameObj.AddComponent<FullnessTracker>();
+					ft.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, fsmName).FsmVariables, max, key, isFluid);
 					bwt = ft;
 					break;
 				case TrackerType.Quantity:
-					newTrackerType = typeof(QuantityTracker);
+					QuantityTracker qt = gameObj.AddComponent<QuantityTracker>(); // qt uwu
+					qt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, fsmName).FsmVariables);
+					bwt = qt;
+					break;
+				case TrackerType.Variant:
+					VariantTracker vt = gameObj.AddComponent<VariantTracker>();
+					vt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Data").FsmVariables, trackerInfo);
+					bwt = vt;
 					break;
 			}
 			// We have a convenient thing going for us here with a bunch of different types of part:
-			// they all keep their integrity variables in a playmaker with the name "Use"
+			// they all keep their integrity variables in a playmaker with the name "Data"
 			// as such, instead of copy-pasting all the relevant logic, we do some evil code here to apply a tracker of the relevant type
 			// as determined by the part we're looking.
 			// it's technically cleaner!
 			if (newTrackerType != null && typeof(BaseWearTracker).IsAssignableFrom(newTrackerType))
 			{
-				BaseWearTracker bt = (BaseWearTracker)go.AddComponent(newTrackerType);
-				bt.Initialize(go.name, PlayMakerExtensions.GetPlayMaker(go, "Use").FsmVariables);
+				if (SettingLogVerification.GetValue())
+					ModConsole.Print($"Initializing new tracker  (type: {newTrackerType})");
+				BaseWearTracker bt = (BaseWearTracker)gameObj.AddComponent(newTrackerType);
+				bt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Data").FsmVariables);
 				bwt = bt;
 			}
 			if (bwt != null)
 			{
 				bwt.BuildDisplayText();
-				_wearTrackers.Add(go, bwt);
+				_wearTrackers.Add(gameObj, bwt);
 			}
-			if (VerboseLogging.GetValue())
-				ModConsole.Print($"A wear tracker component of type {bwt.GetType()} was added to a GameObject named \"{go.name}\".");
+			if (SettingLogVerification.GetValue())
+				ModConsole.Print($"Wear tracker complete.");
+			if (SettingLogVerification.GetValue())
+				ModConsole.Print($"A wear tracker component of type {bwt.GetType()} was added to a GameObject named \"{gameObj.name}\".");
 		}
 		#endregion
 	}

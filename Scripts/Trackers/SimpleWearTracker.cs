@@ -22,7 +22,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{
-			DisplayText = $"{InitialName} - {(_dbInfo.GetFsmBool("Damaged").Value ? "Broken" : "Intact")}";
+			DisplayText = $"{InitialName} - {(_dbInfo.GetFsmFloat("Wear").Value != 99 ? "Broken" : "Intact")}";
 		}
 	}
 }

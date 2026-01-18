@@ -1,17 +1,24 @@
-# Part Inspector
+# Part Inspector (MWC Version)
 
-This is a mod for My Summer Car that lets you look at car parts to see how damaged they are. For more info, take a look at the [Nexus page](https://www.nexusmods.com/mysummercar/mods/2291).
+**Note:** This is the MWC version of Part Inspector. Due to heavy code divergences, the two weren't mutually compatible. The MSC version can be found here: https://github.com/Ilysen/PartInspector
+
+This is a mod for My Winter Car that lets you look at car parts to see how damaged they are, among other things. For more info, take a look at the [Nexus page](https://www.nexusmods.com/mysummercar/mods/2291).
 
 Part Inspector is licensed under the [GNU General Public License v3](http://www.gnu.org/licenses/agpl.html), which can be found in full in [LICENSE.md](LICENSE.md).
 
-Feel free to use the code here for learning or reference; everything is very documented, although I still need to update the accessors to be cleaner.
-I used the following resources to help make and test this mod:
-- [dnSpyEx](https://github.com/dnSpyEx/dnSpy) is a very useful tool for peeking how some of the code works internally, as well as seeing how your code changes in compilation.
-- [BetterCheatBox](https://www.nexusmods.com/mysummercar/mods/1679) helped a lot in testing things to make sure they worked on fresh saves.
-- [Developer Toolkit](https://www.racedepartment.com/downloads/developer-toolkit.17214/) is, as far as I can tell, the only functional mod for modern versions of the game that can be used to see info about the FSMs that My Summer Car largely runs on. If you want to do any kind of modding, you'll want this or something like it. It's possible that [Developer Toolset II](https://www.nexusmods.com/mysummercar/mods/345) might work if you use the MSCLoader compatibility tool, but I haven't tried it.
-- Honorable mention goes to [Modern Optimization Plugin/MOP](https://www.nexusmods.com/mysummercar/mods/146), which is by and large the only reason I can play MSC in the first place without wanting to claw my eyes out.
-
 ## Changelog
+
+### Jan. 17, 2025
+#### Version 0.1 (MWC RE-RELEASE)
+* Heavily refactored for a My Winter Car version:
+	* New items and car parts work properly.
+	* Added a new tracker type that distinguishes an object's variant in its display name.
+		* Instrument panels: Model type (standard, clock, tachometer)
+		* Grilles: Trim (L/GT, LX, SLX, Facelift)
+		* Bumper: Facelift or pre-facelift
+		* Brake lines/master cylinder: Standard or power
+		* Exhaust pipe front: Standard or GT
+	* Fixed a long-standing bug where inspection results were not visible when looking at objects from specific angles. Results are now always displayed when the object's name is visible!
 
 ### Feb. 11, 2025
 #### Version 1.3

@@ -1,4 +1,5 @@
 ﻿using HutongGames.PlayMaker;
+using MSCLoader;
 using UnityEngine;
 
 namespace Ceres.PartInspectorMWC.Trackers
@@ -9,39 +10,21 @@ namespace Ceres.PartInspectorMWC.Trackers
 	internal class StandardWearTracker : BaseWearTracker
 	{
 		/// <summary>
-		/// The key used to fetch the wear value of this part from <see cref="_wearValues"/>.
+		/// The data FSM for this part.
 		/// </summary>
-		private string _wearKey;
-
-		/// <summary>
-		/// These variables contain the wear value for this part.
-		/// </summary>
-		private FsmVariables _wearValues;
-
-		/// <summary>
-		/// Used to track if this part is broken or not. My Summer Car separates these, so we gotta too.
-		/// </summary>
-		private FsmVariables _dbInfo;
+		private FsmVariables _dataFsm;
 
 		/// <inheritdoc/>
 		internal override void Initialize(string initName, params object[] extraArgs)
 		{
+			if (PartInspectorScript.SettingLogVerification.GetValue())
+				ModConsole.Print($"Initializing new standard wear tracker: {initName}");
 			base.Initialize(initName);
-			_wearKey = (string)extraArgs[0];
-			_wearValues = (FsmVariables)extraArgs[1];
-			_dbInfo = (FsmVariables)extraArgs[2];
+			_dataFsm = (FsmVariables)extraArgs[0];
 		}
 
 		/// <inheritdoc/>
-		internal override float GetWearPercentage()
-		{
-			float partWear = 0;
-			// Broken parts technically keep their wear value as-is; whether or not they're intact is tracked with a separate variable
-			// As a result, we skip checking for wear values on broken parts, and instead just treat them as having zero integrity
-			if (!_dbInfo.GetFsmBool("Damaged").Value && _wearKey != null)
-				partWear = _wearValues.GetFsmFloat(_wearKey).Value;
-			return partWear;
-		}
+		internal override float GetWearPercentage() => _dataFsm.GetFsmFloat("Wear").Value;
 
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
@@ -52,7 +35,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 				newText = "Broken";
 			else
 			{
-				switch (Ceres.PartInspectorMWC.PartDisplayPrecision.GetSelectedItemIndex())
+				switch (PartInspectorScript.PartDisplayPrecision.GetSelectedItemIndex())
 				{
 					case 1: // General description
 						string descriptor;
