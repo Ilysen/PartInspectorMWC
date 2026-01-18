@@ -9,27 +9,10 @@ namespace Ceres.PartInspectorMWC.Trackers
 	/// </summary>
 	internal class StandardWearTracker : BaseWearTracker
 	{
-		/// <summary>
-		/// The data FSM for this part.
-		/// </summary>
-		private FsmVariables _dataFsm;
-
-		/// <inheritdoc/>
-		internal override void Initialize(string initName, params object[] extraArgs)
-		{
-			if (PartInspectorScript.SettingLogVerification.GetValue())
-				ModConsole.Print($"Initializing new standard wear tracker: {initName}");
-			base.Initialize(initName);
-			_dataFsm = (FsmVariables)extraArgs[0];
-		}
-
-		/// <inheritdoc/>
-		internal override float GetWearPercentage() => _dataFsm.GetFsmFloat("Wear").Value;
-
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{
-			float partWear = GetWearPercentage();
+			float partWear = FsmVariables.GetFsmFloat("Wear").Value;
 			string newText;
 			if (partWear <= 0) // Always display broken parts as just "broken"
 				newText = "Broken";

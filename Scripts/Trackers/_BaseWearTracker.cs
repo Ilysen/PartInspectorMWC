@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using HutongGames.PlayMaker;
+using UnityEngine;
 
 namespace Ceres.PartInspectorMWC.Trackers
 {
@@ -18,12 +19,18 @@ namespace Ceres.PartInspectorMWC.Trackers
 		public string DisplayText;
 
 		/// <summary>
+		/// Every tracker type has to reference FSMs of some kind, even if the specifics vary.
+		/// </summary>
+		public FsmVariables FsmVariables;
+
+		/// <summary>
 		/// Initializes this wear tracker with the provided arguments.
 		/// A name is required, but after that, any number of arguments can be passed. Subtypes can use this for special logic.
 		/// </summary>
-		internal virtual void Initialize(string initName, params object[] extraArgs)
+		internal virtual void Initialize(string initName, FsmVariables fsmVars, params object[] extraArgs)
 		{
 			InitialName = initName.Replace("(Clone)", "").Replace("(itemx)", "").Replace("(VINXX)", "").Replace("(VINX0)", "");
+			FsmVariables = fsmVars;
 		}
 
 		/// <summary>

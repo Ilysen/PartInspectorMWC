@@ -8,22 +8,6 @@ namespace Ceres.PartInspectorMWC.Trackers
 	/// </summary>
 	internal class SparkPlugTracker : BaseWearTracker
 	{
-		/// <summary>
-		/// The FSM that keeps track of this spark plug's wear.
-		/// This is protected and not private because alternator belt trackers inherit the logic - see <see cref="AlternatorBeltTracker"/> for more info.
-		/// </summary>
-		protected FsmVariables _wearFsm;
-
-		/// <inheritdoc/>
-		internal override void Initialize(string initName, params object[] extraArgs)
-		{
-			base.Initialize(initName);
-			_wearFsm = (FsmVariables)extraArgs[0];
-		}
-
-		/// <inheritdoc/>
-		internal override float GetWearPercentage() => _wearFsm.GetFsmFloat("Wear").Value;
-
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{

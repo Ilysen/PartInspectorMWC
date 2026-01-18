@@ -6,17 +6,33 @@ namespace Ceres.PartInspectorMWC.Trackers
 {
 	/// <summary>
 	/// Tracks fullness. What this means varies depending on the part; this tracker just keeps tabs on a specific value
-	/// as well as the maximum amount that it previously sat at. This is used for fluid containers, ground coffee, etc;
+	/// as well as the maximum amount that it previously sat at. This is used for fluid containers, ground coffee, etc.;
 	/// anything that has an amount of contents that can be used up over time can be handled by one of these.
-	///
-	/// Jerry cans are excluded because they already have a way to check their fullness.
+	/// <br/><br/>
+	/// Because they already have a built-in way of checking their contents, gasoline and diesel canisters are excluded.
 	/// </summary>
 	internal class FullnessTracker : BaseWearTracker
 	{
 		/// <summary>
-		/// The FSM that keeps track of this fluid container's current contents.
+		/// Used to track initialization info for fullness trackers, which have to account for many different values.
+		/// This struct can be used to designate the name of the FSM variable that's being tracked, as well as its maximum value (for percentage/ratio calculations)
+		/// and whether or not it's a fluid (for deciding whether to display liters remaining or just the percentage left.)
 		/// </summary>
-		private FsmVariables _fullnessFsm;
+		internal struct FullnessInfo
+		{
+			internal string ValueKey;
+			internal float MaxValue;
+			internal string FsmName;
+			internal bool DisplayAsFluid;
+
+			internal FullnessInfo(string FsmName = "Use", string ValueKey = "Fluid", float MaxValue = default, bool DisplayAsFluid = default)
+			{
+				this.ValueKey = ValueKey;
+				this.MaxValue = MaxValue;
+				this.FsmName = FsmName;
+				this.DisplayAsFluid = DisplayAsFluid;
+			}
+		}
 
 		/// <summary>
 		/// The max fluid that this container can hold. Assigned in <see cref="Ceres.PartInspectorMWC.CreateTrackerForPart(GameObject, PartInspectorMWC.TrackerType)"/> during initialization and used to calculate fractions (i.e. "half full") in <see cref="BuildDisplayText"/>.
@@ -31,16 +47,16 @@ namespace Ceres.PartInspectorMWC.Trackers
 		/// <summary>
 		/// If true, exact percentage display will show the remaining mL instead. If false, it'll show the percentage as usual.
 		/// </summary>
-		private bool _isFluid = true;
+		private bool _displayAsFluid = true;
 
 		/// <inheritdoc/>
-		internal override void Initialize(string initName, params object[] extraArgs)
+		internal override void Initialize(string initName, FsmVariables fsmVars, params object[] extraArgs)
 		{
-			base.Initialize(initName);
-			_fullnessFsm = (FsmVariables)extraArgs[0];
-			_maxFullness = (float)extraArgs[1];
-			_fullnessKey = (string)extraArgs[2];
-			_isFluid = (bool)extraArgs[3];
+			base.Initialize(initName, fsmVars);
+			FullnessInfo fi = (FullnessInfo)extraArgs[0];
+			_maxFullness = fi.MaxValue;
+			_fullnessKey = fi.ValueKey;
+			_displayAsFluid = fi.DisplayAsFluid;
 		}
 
 		/// <inheritdoc/>
@@ -49,7 +65,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 		/// <summary>
 		/// Gets the remaining fluid for this tracker.
 		/// </summary>
-		private float GetFullnessLevel() => _fullnessFsm.GetFsmFloat(_fullnessKey).Value;
+		private float GetFullnessLevel() => FsmVariables.GetFsmFloat(_fullnessKey).Value;
 
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
@@ -79,11 +95,11 @@ namespace Ceres.PartInspectorMWC.Trackers
 						newText = "nearly empty";
 					break;
 				default: // Exact percentage
-					if (_isFluid)
+					if (_displayAsFluid)
 					{
 						float ml = Mathf.RoundToInt(GetFullnessLevel() * 1000);
 						if (ml >= 1000) // 1 liter or above - truncate value to read something like "1.2 L"
-							newText = $"{System.Math.Round(GetFullnessLevel(), 2)} L";
+							newText = $"{Math.Round(GetFullnessLevel(), 2)} L";
 						else // Below 1 liter - display as exact mL value, like "372 mL"
 							newText = $"{ml} mL";
 					}

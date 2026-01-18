@@ -11,6 +11,6 @@
 		// i.e. it's closer to "remaining health" than it is to "total damage".
 		// why it does this in differently from everything other part, I will never know
 		/// <inheritdoc/>
-		internal override float GetWearPercentage() => 100 - _wearFsm.GetFsmFloat("Wear").Value;
+		internal override float GetWearPercentage() => 100 - FsmVariables.GetFsmFloat("Wear").Value;
 	}
 }

@@ -3,21 +3,23 @@ using HutongGames.PlayMaker;
 using MSCLoader;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using TanjentOGG;
 using UnityEngine;
+using static Ceres.PartInspectorMWC.Trackers.FullnessTracker;
 
 namespace Ceres.PartInspectorMWC
 {
 	public class PartInspectorScript : Mod
 	{
+		#region Metadata
 		public override string ID => "Ceres_PartInspectorMWC";
 		public override string Name => "Part Inspector";
 		public override string Author => "Ceres et al.";
 		public override string Version => "0.1";
 		public override string Description => "Inspect your stuff for integrity, condition, and dirtiness.";
 		public override Game SupportedGames => Game.MyWinterCar;
+		#endregion
 
 		#region Mod setup and settings
 		internal static SettingsDropDownList DisplayLocation;
@@ -31,7 +33,8 @@ namespace Ceres.PartInspectorMWC
 		internal static SettingsCheckBox EnableOilFilterTrackers;
 		internal static SettingsCheckBox EnableFluidContainerTrackers;
 		internal static SettingsCheckBox EnableFullnessContainerTrackers;
-		internal static SettingsCheckBox EnableObjectVariants;
+		internal static SettingsCheckBox EnableQuantityTrackers;
+		internal static SettingsCheckBox EnableObjectVariantTrackers;
 
 		internal static SettingsCheckBox SettingLogVerification;
 		internal static SettingsCheckBox SettingLogNewTrackers;
@@ -63,9 +66,10 @@ namespace Ceres.PartInspectorMWC
 			EnableSparkPlugTrackers = Settings.AddCheckBox("enableSparkPlugTrackers", "Spark plug wear", true);
 			EnableOilFilterTrackers = Settings.AddCheckBox("enableOilFilterTrackers", "Oil filter dirtiness", true);
 			EnableFluidContainerTrackers = Settings.AddCheckBox("enableFluidContainerTrackers", "Fluid container fullness", true);
+			Settings.AddText("Includes brake fluid, motor oil, two-stroke fuel, transmission fluid, and coolant.");
 			EnableFullnessContainerTrackers = Settings.AddCheckBox("enableOtherFullnessTrackers", "Coffee and charcoal fullness", true);
-			Settings.AddText("Includes brake fluid, motor oil, two-stroke fuel, and coolant canisters.");
-			EnableObjectVariants = Settings.AddCheckBox("enableObjectVariants", "Identify object variants", true);
+			EnableQuantityTrackers = Settings.AddCheckBox("enableQuantityTrackers", "Battery/fuse quantity", true);
+			EnableObjectVariantTrackers = Settings.AddCheckBox("enableObjectVariants", "Identify object variants", true);
 			Settings.AddText("A part's variant/model/etc. will be included in its displayed name; instrument panels, grilles, and so on.");
 
 			Settings.AddHeader("Logging", headingColor, Color.white);
@@ -90,28 +94,12 @@ namespace Ceres.PartInspectorMWC
 		}
 
 		/// <summary>
-		/// Used to track initialization info for fullness trackers, which are the most complex tracker type by far due to accounting for many items.
-		/// This struct can be used to designate the name of the FSM variable that's being tracked, as well as its maximum value (for percentage/ratio calculations)
-		/// and whether or not it's a fluid (for deciding whether to display liters remaining or just the percentage left.)
+		/// Used to track initialization info for variant trackers.
+		/// Variants in MWC don't have a standardized way to distinguish between them;
+		/// sometimes they use Type (an int), sometimes they use Model (a string), etc.
+		/// This struct allows each given part type to define how its variant is determined,
+		/// and the human-readable name associated with each variant type.
 		/// </summary>
-		private struct TrackerInfo
-		{
-			internal TrackerType TrackerType;
-			internal string ValueKey;
-			internal float MaxValue;
-			internal bool IsFluid;
-			internal string FsmName;
-
-			internal TrackerInfo(TrackerType TrackerType, string ValueKey = default, float MaxValue = default, bool IsFluid = default, string FsmName = default)
-			{
-				this.TrackerType = TrackerType;
-				this.ValueKey = ValueKey;
-				this.MaxValue = MaxValue;
-				this.IsFluid = IsFluid;
-				this.FsmName = FsmName;
-			}
-		}
-
 		internal struct VariantInfo
 		{
 			internal Dictionary<object, string> Variants;
@@ -134,29 +122,29 @@ namespace Ceres.PartInspectorMWC
 		// msc is so spaghetti. modding is a pathway to abilities some consider to be unnatural
 		private readonly Dictionary<string, object> _partNames = new Dictionary<string, object>
 		{
-			{ "Engine Block(VINXX)", TrackerType.Simple },
+			{ "Engine Block(VINX0)", TrackerType.Simple },
 			{ "Oilpan(VINXX)", TrackerType.Simple },
 
-			{ "automatic transmission fluid(itemx)", new TrackerInfo(TrackerType.Fullness, MaxValue: 1f, IsFluid: true ) },
-			{ "brake fluid(itemx)", new TrackerInfo(TrackerType.Fullness, MaxValue: 1f, IsFluid: true ) },
-			{ "two stroke fuel(itemx)", new TrackerInfo(TrackerType.Fullness, MaxValue: 5f, IsFluid: true ) },
-			{ "motor oil(itemx)", new TrackerInfo(TrackerType.Fullness, MaxValue: 4f, IsFluid: true ) },
-			{ "coolant(itemx)", new TrackerInfo(TrackerType.Fullness, MaxValue: 10f, IsFluid: true ) },
+			{ "automatic transmission fluid(itemx)", new FullnessInfo(MaxValue: 1f, DisplayAsFluid: true ) },
+			{ "brake fluid(itemx)", new FullnessInfo(MaxValue: 1f, DisplayAsFluid: true ) },
+			{ "two stroke fuel(itemx)", new FullnessInfo(MaxValue: 5f, DisplayAsFluid: true ) },
+			{ "motor oil(itemx)", new FullnessInfo(MaxValue: 4f, DisplayAsFluid: true ) },
+			{ "coolant(itemx)", new FullnessInfo(MaxValue: 10f, DisplayAsFluid: true ) },
 
 			{ "Oil filter(VINXX)", TrackerType.OilFilter },
 			{ "spark plug(Clone)", TrackerType.SparkPlug },
-			{ "spray can(itemx)", new TrackerInfo(TrackerType.Fullness, MaxValue: 100f ) },
-			{ "mosquito spray(itemx)", new TrackerInfo(TrackerType.Fullness, MaxValue: 100f ) },
-			{ "Fire Extinguisher(VINXX)", new TrackerInfo(TrackerType.Fullness, MaxValue: 100f, FsmName: "Data" ) },
-			{ "ground coffee(itemx)", new TrackerInfo(TrackerType.Fullness, "Ground", 100f ) },
-			{ "grill charcoal(itemx)", new TrackerInfo(TrackerType.Fullness, "Contents", 140f ) },
+			{ "spray can(itemx)", new FullnessInfo(MaxValue: 100f ) },
+			{ "mosquito spray(itemx)", new FullnessInfo(MaxValue: 100f ) },
+			{ "Fire Extinguisher(VINXX)", new FullnessInfo(MaxValue: 100f, FsmName: "Data" ) },
+			{ "ground coffee(itemx)", new FullnessInfo(ValueKey: "Ground", MaxValue: 100f ) },
+			{ "grill charcoal(itemx)", new FullnessInfo(ValueKey: "Contents", MaxValue: 140f ) },
 
 			{ "spark plug box(Clone)", TrackerType.Quantity },
 			{ "r20 battery box(Clone)", TrackerType.Quantity },
 			{ "fuse package(Clone)", TrackerType.Quantity },
 
-			{ "Brake Lines(VINXX)", new VariantInfo( new Dictionary<object, string>{ 
-				{ 1, "Standard Brakes" }, { 2, "Power Brakes" } 
+			{ "Brake Lines(VINXX)", new VariantInfo( new Dictionary<object, string>{
+				{ 1, "Standard Brakes" }, { 2, "Power Brakes" }
 			}, typeof(int) ) },
 
 			{ "Brake Master Cylinder(VINXX)", new VariantInfo( new Dictionary<object, string>{
@@ -167,7 +155,7 @@ namespace Ceres.PartInspectorMWC
 				{ 0, "Standard" }, { 1, "GT" }
 			}, typeof(int) ) },
 
-			{ "Instrument Panel(VINXX)", new VariantInfo( new Dictionary<object, string>{ 
+			{ "Instrument Panel(VINXX)", new VariantInfo( new Dictionary<object, string>{
 				{ "A", "Standard" },
 				{ "B", "Clock" },
 				{ "C", "Tachometer" },
@@ -207,6 +195,11 @@ namespace Ceres.PartInspectorMWC
 		/// </summary>
 		private float _updateTimer = 0f;
 
+		/// <summary>
+		/// A cached reference to the FSM used to track the object the player is currently looking at.
+		/// We use this instead of <see cref="UnifiedRaycast"/> because it lets us benefit from the game's own logic
+		/// on determining what object's name should be displaying, which the unified raycast does not.
+		/// </summary>
 		private FsmVariables _plyCam;
 		#endregion
 
@@ -222,26 +215,33 @@ namespace Ceres.PartInspectorMWC
 		{
 			if (Context == ConsoleMessageScope.Verification && !SettingLogVerification.GetValue())
 				return;
+			if (Context == ConsoleMessageScope.NewTrackers && !SettingLogNewTrackers.GetValue())
+				return;
 			ModConsole.Print($"[PI] {Message}");
 		}
 		#endregion
 
 		#region Main functions
+
+		private void Mod_OnLoad()
+		{
+			Stopwatch stopwatch = new Stopwatch();
+			stopwatch.Start();
+			PrintToConsole($"{Name} version {Version} is attempting to initialize!", ConsoleMessageScope.Core);
+			_wearTrackers = new Dictionary<GameObject, BaseWearTracker>();
+			PrintToConsole("Setting stuff up...", ConsoleMessageScope.Core);
+			RefreshDisplayGUI();
+			RebuildDisplays();
+			PrintToConsole("Detecting player hand camera...", ConsoleMessageScope.Core);
+			_plyCam = GameObject.Find("PLAYER/Pivot/AnimPivot/Camera/FPSCamera/1Hand_Assemble/Hand").GetPlayMaker("PickUp").FsmVariables;
+			stopwatch.Stop();
+			PrintToConsole($"{Name} initialized after {stopwatch.Elapsed.Milliseconds} ms!", ConsoleMessageScope.Core);
+		}
+
 		private void Mod_OnUpdate()
 		{
 			UpdateDisplays();
 			UpdateInspection();
-		}
-
-		private void Mod_OnLoad()
-		{
-			_wearTrackers = new Dictionary<GameObject, BaseWearTracker>();
-			RefreshDisplayGUI();
-			RebuildDisplays();
-			ModConsole.Print("Detecting player camera...");
-			_plyCam = GameObject.Find("PLAYER/Pivot/AnimPivot/Camera/FPSCamera/1Hand_Assemble/Hand").GetPlayMaker("PickUp").FsmVariables;
-			ModConsole.Print("Player camera located.");
-			ModConsole.Print($"{Name} version {Version} has been initialized!");
 		}
 
 		/// <summary>
@@ -260,7 +260,7 @@ namespace Ceres.PartInspectorMWC
 					// We do this after iteration to avoid runtimes
 					if (kvp.Key == null)
 					{
-						PrintToConsole($"Found a tracker of type {kvp.Value.GetType()} with a null object. Adding to removal queue.", ConsoleMessageScope.Verification);
+						PrintToConsole($"Found a tracker of type {kvp.Value.GetType()} with a null object. Adding to removal queue.", ConsoleMessageScope.NewTrackers);
 						toRemove.Add(kvp.Key);
 						continue;
 					}
@@ -268,7 +268,7 @@ namespace Ceres.PartInspectorMWC
 				}
 				foreach (var obj in toRemove)
 				{
-					PrintToConsole("Removing null tracker...", ConsoleMessageScope.Verification);
+					PrintToConsole("Removing null tracker...", ConsoleMessageScope.NewTrackers);
 					_wearTrackers.Remove(obj);
 				}
 			}
@@ -359,42 +359,24 @@ namespace Ceres.PartInspectorMWC
 		}
 
 		/// <summary>
-		/// Creates a wear tracker component for the provided <see cref="GameObject"/>.
+		/// Creates a tracker component for the provided <see cref="GameObject"/>.
+		/// See arguments for info on how tracker type is determined.
 		/// </summary>
 		/// <param name="gameObj">The <see cref="GameObject"/> that will begin being tracked.</param>
-		/// <param name="trackerInfo">A <see cref="TrackerType"/> or <see cref="TrackerInfo"/> for the object.
-		/// If null, it will fall back to <see cref="TrackerType.Standard"/>.</param>
+		/// <param name="trackerInfo">Determines which type of tracker will be used.
+		/// Accepts <see cref="TrackerType"/>, <see cref="FullnessInfo"/>, <see cref="VariantInfo"/>, or null
+		/// (which falls back to <see cref="TrackerType.Standard"/>).</param>
 		private void CreateTrackerForPart(GameObject gameObj, object trackerInfo = null)
 		{
 			TrackerType tt = TrackerType.Standard;
-
-			string key = "Fluid";
-			float max = 1f;
-			bool isFluid = false;
-			string fsmName = "Use";
 			if (trackerInfo is TrackerType t)
 				tt = t;
-			else if (trackerInfo is TrackerInfo ti)
-			{
-				tt = ti.TrackerType;
-				isFluid = ti.IsFluid;
-				if (ti.ValueKey != default)
-					key = ti.ValueKey;
-				if (ti.MaxValue != default)
-					max = ti.MaxValue;
-				if (ti.FsmName != default)
-					fsmName = ti.FsmName;
-			}
+			else if (trackerInfo is FullnessInfo)
+				tt = TrackerType.Fullness;
 			else if (trackerInfo is VariantInfo)
-			{
 				tt = TrackerType.Variant;
-			}
-			if (SettingLogVerification.GetValue())
-				ModConsole.Print($"Tracker type: {tt}");
 			BaseWearTracker bwt = null;
 			Type newTrackerType = null;
-			if (SettingLogVerification.GetValue())
-				ModConsole.Print("Choosing new type...");
 			switch (tt)
 			{
 				case TrackerType.Standard:
@@ -418,32 +400,34 @@ namespace Ceres.PartInspectorMWC
 					newTrackerType = typeof(SparkPlugTracker);
 					break;
 				case TrackerType.Fullness:
-					if ((isFluid && !EnableFluidContainerTrackers.GetValue()) || (!isFluid && !EnableFullnessContainerTrackers.GetValue()))
+					FullnessInfo fi = (FullnessInfo)trackerInfo;
+					if ((fi.DisplayAsFluid && !EnableFluidContainerTrackers.GetValue()) || (!fi.DisplayAsFluid && !EnableFullnessContainerTrackers.GetValue()))
 						break;
 					FullnessTracker ft = gameObj.AddComponent<FullnessTracker>();
-					ft.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, fsmName).FsmVariables, max, key, isFluid);
+					ft.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, fi.FsmName).FsmVariables, fi);
 					bwt = ft;
 					break;
 				case TrackerType.Quantity:
+					if (!EnableQuantityTrackers.GetValue())
+						break;
 					QuantityTracker qt = gameObj.AddComponent<QuantityTracker>(); // qt uwu
-					qt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, fsmName).FsmVariables);
+					qt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Use").FsmVariables);
 					bwt = qt;
 					break;
 				case TrackerType.Variant:
+					if (!EnableObjectVariantTrackers.GetValue())
+						break;
 					VariantTracker vt = gameObj.AddComponent<VariantTracker>();
 					vt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Data").FsmVariables, trackerInfo);
 					bwt = vt;
 					break;
+				default:
+					ModConsole.Error($"Part Inspector attempted to initialize with an invalid tracker type: {tt}");
+					return;
 			}
-			// We have a convenient thing going for us here with a bunch of different types of part:
-			// they all keep their integrity variables in a playmaker with the name "Data"
-			// as such, instead of copy-pasting all the relevant logic, we do some evil code here to apply a tracker of the relevant type
-			// as determined by the part we're looking.
-			// it's technically cleaner!
 			if (newTrackerType != null && typeof(BaseWearTracker).IsAssignableFrom(newTrackerType))
 			{
-				if (SettingLogVerification.GetValue())
-					ModConsole.Print($"Initializing new tracker  (type: {newTrackerType})");
+				PrintToConsole($"Initializing new tracker  (type: {newTrackerType})", ConsoleMessageScope.NewTrackers);
 				BaseWearTracker bt = (BaseWearTracker)gameObj.AddComponent(newTrackerType);
 				bt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Data").FsmVariables);
 				bwt = bt;
@@ -452,11 +436,8 @@ namespace Ceres.PartInspectorMWC
 			{
 				bwt.BuildDisplayText();
 				_wearTrackers.Add(gameObj, bwt);
+				PrintToConsole($"A tracker component of type {bwt.GetType()} was added to an object named \"{gameObj.name}\".", ConsoleMessageScope.NewTrackers);
 			}
-			if (SettingLogVerification.GetValue())
-				ModConsole.Print($"Wear tracker complete.");
-			if (SettingLogVerification.GetValue())
-				ModConsole.Print($"A wear tracker component of type {bwt.GetType()} was added to a GameObject named \"{gameObj.name}\".");
 		}
 		#endregion
 	}

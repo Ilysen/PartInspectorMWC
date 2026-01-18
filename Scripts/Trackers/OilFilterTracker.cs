@@ -8,26 +8,11 @@ namespace Ceres.PartInspectorMWC.Trackers
 	/// </summary>
 	internal class OilFilterTracker : BaseWearTracker
 	{
-		/// <summary>
-		/// The FSM that keeps track of this filter's dirtiness.
-		/// </summary>
-		private FsmVariables _dirtFsm;
-
-		/// <inheritdoc/>
-		internal override void Initialize(string initName, params object[] extraArgs)
-		{
-			base.Initialize(initName);
-			_dirtFsm = (FsmVariables)extraArgs[0];
-		}
-
-		/// <inheritdoc/>
-		internal override float GetWearPercentage() => _dirtFsm.GetFsmFloat("Dirt").Value;
-
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{
 			string newText;
-			float effectiveFilth = _dirtFsm.GetFsmFloat("Dirt").Value;
+			float effectiveFilth = FsmVariables.GetFsmFloat("Dirt").Value;
 			switch (PartInspectorScript.PartDisplayPrecision.GetSelectedItemIndex())
 			{
 				case 1: // General description

@@ -13,20 +13,27 @@ namespace Ceres.PartInspectorMWC.Trackers
 	/// </summary>
 	internal class VariantTracker : BaseWearTracker
 	{
-		private FsmVariables _fsm;
-
+		/// <summary>
+		/// The name of the FSM variable that keeps track of this object's variant.
+		/// </summary>
 		private string _variantKey;
 
+		/// <summary>
+		/// The type of the FSM variable that keeps track of this object's variant.
+		/// Some objects use string variables (for things like Model), and some use numbers (for things like Type).
+		/// </summary>
 		private Type _variantKeyType;
 
+		/// <summary>
+		/// A dictionary of all possible variant values associated to their human-readable names.
+		/// </summary>
 		private Dictionary<object, string> _variants;
 
 		/// <inheritdoc/>
-		internal override void Initialize(string initName, params object[] extraArgs)
+		internal override void Initialize(string initName, FsmVariables fsmVars, params object[] extraArgs)
 		{
-			base.Initialize(initName);
-			_fsm = (FsmVariables)extraArgs[0];
-			VariantInfo vi = (VariantInfo)extraArgs[1];
+			base.Initialize(initName, fsmVars);
+			VariantInfo vi = (VariantInfo)extraArgs[0];
 			_variantKey = vi.VariantKey;
 			_variants = vi.Variants;
 			_variantKeyType = vi.VariantKeyType;
@@ -37,9 +44,9 @@ namespace Ceres.PartInspectorMWC.Trackers
 		{
 			object val = null;
 			if (_variantKeyType == typeof(string))
-				val = _fsm.GetFsmString(_variantKey).Value;
+				val = FsmVariables.GetFsmString(_variantKey).Value;
 			else if (_variantKeyType == typeof(float))
-				val = _fsm.GetFsmFloat(_variantKey).Value;
+				val = FsmVariables.GetFsmFloat(_variantKey).Value;
 			if (val == null)
 				return;
 			string text = _variants[val];
