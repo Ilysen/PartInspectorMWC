@@ -62,13 +62,12 @@ namespace Ceres.PartInspectorMWC
 			SettingShowContainerFullness = Settings.AddCheckBox(nameof(SettingShowContainerFullness), "Show container fullness", true);
 			Settings.AddText("Includes fluids (motor oil, coolant, etc.) as well as solids (ground coffee and grill charcoal).");
 			SettingShowPackageQuantity = Settings.AddCheckBox(nameof(SettingShowPackageQuantity), "Show package quantity", true);
-			Settings.AddText("For R20 batteries and fuse boxes. Displays the amount left in the package.");
+			Settings.AddText("For spark plugs, fuses, etc. Displays the amount left in the package.");
 			SettingShowObjectVariants = Settings.AddCheckBox(nameof(SettingShowObjectVariants), "Show object variants", true);
 			Settings.AddText("A part's variant will be shown in its display name. For things like instrument panels, grilles, and brake lines.");
 			SettingShowBoltSizes = Settings.AddCheckBox(nameof(SettingShowBoltSizes), "Show bolt sizes", false,
 				() => _showBoltSizes = SettingShowBoltSizes.GetValue());
-			Settings.AddText("When in tool mode, shows the size of whatever bolt you're looking at. Can be configured to have " +
-				"more or less precision; see below.");
+			Settings.AddText("When in tool mode, shows the size of whatever bolt you're looking at.");
 
 			Settings.AddHeader("Interface", headingColor, Color.white);
 			Settings.AddText("Some of these settings won't do anything without specific trackers being enabled!");
@@ -87,12 +86,12 @@ namespace Ceres.PartInspectorMWC
 				"Only use it if you find the default rate to be too sluggish.</color>");
 
 			Settings.AddHeader("Logging", headingColor, Color.white);
-			Settings.AddText("If you're running into bugs, these settings will put extra info into your log that'll help the author diagnose the issues. Keep them all off for regular play, but please turn them on when submitting a bug report!");
+			Settings.AddText("If you're running into bugs, these settings will put extra info into your log that'll help the author diagnose the issues. Keep them all off for regular play, but please turn on the relevant ones when submitting a bug report!");
 			SettingLogNewTrackers = Settings.AddCheckBox(nameof(SettingLogNewTrackers), "Log new trackers", false,
 				() => _logNewTrackers = SettingLogNewTrackers.GetValue());
-			SettingLogVerification = Settings.AddCheckBox(nameof(SettingLogVerification), "Log object verification <color=yellow>(warning: laggy)</color>", false,
+			SettingLogVerification = Settings.AddCheckBox(nameof(SettingLogVerification), "Log object verification <color=yellow>(warning: spammy)</color>", false,
 				() => _logVerification = SettingLogVerification.GetValue());
-			SettingLogBoltSize = Settings.AddCheckBox(nameof(SettingLogBoltSize), "Log bolt size inspection <color=red>(warning: makes tool mode very laggy)</color>", false,
+			SettingLogBoltSize = Settings.AddCheckBox(nameof(SettingLogBoltSize), "Log bolt size inspection <color=red>(warning: makes tool mode lag a lot)</color>", false,
 				() => _logBoltSize = SettingLogBoltSize.GetValue());
 		}
 		#endregion
@@ -300,7 +299,7 @@ namespace Ceres.PartInspectorMWC
 			{
 				Stopwatch stopwatch = new Stopwatch();
 				stopwatch.Start();
-				PrintToConsole($"{Name} version {Version} is attempting to initialize!", ConsoleMessageScope.Core);
+				PrintToConsole($"{Name} version {Version} is attempting to initialize", ConsoleMessageScope.Core);
 
 				PrintToConsole("Caching objects and variables...", ConsoleMessageScope.Core);
 				FsmVariables plyCam = GameObject.Find("PLAYER/Pivot/AnimPivot/Camera/FPSCamera/1Hand_Assemble/Hand").GetPlayMaker("PickUp").FsmVariables;
@@ -318,7 +317,7 @@ namespace Ceres.PartInspectorMWC
 				_logVerification = SettingLogVerification.GetValue();
 				_logBoltSize = SettingLogBoltSize.GetValue();
 
-				PrintToConsole("Setting display UI...", ConsoleMessageScope.Core);
+				PrintToConsole("Setting up display UI...", ConsoleMessageScope.Core);
 				RefreshDisplayGUI();
 				PrintToConsole("Finalizing setup...", ConsoleMessageScope.Core);
 				_allTrackers = new Dictionary<GameObject, BaseTracker>();
@@ -326,6 +325,7 @@ namespace Ceres.PartInspectorMWC
 
 				stopwatch.Stop();
 				PrintToConsole($"{Name} initialized after {stopwatch.Elapsed.Milliseconds} ms!", ConsoleMessageScope.Core);
+				PrintToConsole($"Enabled logging levels: {_logNewTrackers}, {_logVerification}, {_logBoltSize}", ConsoleMessageScope.Core);
 			} catch (Exception e) {
 				ModConsole.Error($"{Name} version {Version} failed to initialize!!! Error: {e.StackTrace}");
 			}
@@ -469,7 +469,6 @@ namespace Ceres.PartInspectorMWC
 			if (toolSize == 0.65f)
 			{
 				PrintToConsole("...Returning because we're holding a screwdriver.", ConsoleMessageScope.BoltInspection);
-				_boltSizeText = "Need screwdriver";
 				return;
 			}
 			if (!_curBolt.Value)

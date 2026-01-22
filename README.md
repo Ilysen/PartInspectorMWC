@@ -8,7 +8,7 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 
 ## Changelog
 
-# INDEV
+### 22 January, 2026
 #### Version 0.1 (MWC RE-RELEASE)
 * Heavily refactored for My Winter Car:
 	* All new items and car parts should work properly.
@@ -27,7 +27,7 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 		* Exhaust pipe front: Standard or GT
 		* *Note:* Things like door trims and seat colors aren't included, since that's information you can immediately intuit just by looking at them (unlike the other affected objects, which require prior knowledge to correctly identify!)
 	* Added a QoL setting, disabled by default, that shows the size of a bolt you're looking at while in tool mode. Mainly meant so you don't have to install another mod for it.
-	* Changed the thresholds for standard part wear to encourage more caution:
+	* Changed the thresholds for standard part wear to better represent when using a part becomes a bad idea:
 		* Shoddy: Now 35% to 25% (previously 35% to 20%)
 		* Bad: Now 25% to 15% (previously 20% to 10%)
 		* Terrible: Now 15% and below (previously 10% and below)
