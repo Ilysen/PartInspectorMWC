@@ -10,7 +10,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{
-			DisplayText = $"{InitialName} - {(FsmVariables.GetFsmFloat("Wear").Value != 99 ? "Broken" : "Intact")}";
+			DisplayText = $"{InitialName} - {(FsmVariables.GetFsmFloat("Wear").Value != 0 ? "Intact" : "Broken")}";
 		}
 	}
 }

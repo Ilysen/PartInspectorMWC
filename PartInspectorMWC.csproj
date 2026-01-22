@@ -66,7 +66,6 @@
     <Compile Include="Scripts\Trackers\OilFilterTracker.cs" />
     <Compile Include="Scripts\Trackers\QuantityTracker.cs" />
     <Compile Include="Scripts\Trackers\SimpleWearTracker.cs" />
-    <Compile Include="Scripts\Trackers\SparkPlugTracker.cs" />
     <Compile Include="Scripts\Trackers\StandardWearTracker.cs" />
     <Compile Include="Scripts\Trackers\_BaseWearTracker.cs" />
   </ItemGroup>

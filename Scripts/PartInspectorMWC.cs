@@ -83,10 +83,9 @@ namespace Ceres.PartInspectorMWC
 			Standard = 1,
 			Simple = 2,
 			OilFilter = 3,
-			SparkPlug = 4,
-			Fullness = 5,
-			Quantity = 6,
-			Variant = 7
+			Fullness = 4,
+			Quantity = 5,
+			Variant = 6
 		}
 
 		/// <summary>
@@ -128,7 +127,6 @@ namespace Ceres.PartInspectorMWC
 			{ "coolant(itemx)", new FullnessInfo(MaxValue: 10f, DisplayAsFluid: true ) },
 
 			{ "Oil filter(VINXX)", TrackerType.OilFilter },
-			{ "spark plug(Clone)", TrackerType.SparkPlug },
 			{ "spray can(itemx)", new FullnessInfo(MaxValue: 100f ) },
 			{ "mosquito spray(itemx)", new FullnessInfo(MaxValue: 100f ) },
 			{ "Fire Extinguisher(VINXX)", new FullnessInfo(MaxValue: 100f, FsmName: "Data" ) },
@@ -197,6 +195,8 @@ namespace Ceres.PartInspectorMWC
 		/// on determining what object's name should be displaying, which the unified raycast does not.
 		/// </summary>
 		private FsmVariables _plyCam;
+
+		private FsmBool _toolMode;
 		#endregion
 
 		#region Debug
@@ -230,6 +230,7 @@ namespace Ceres.PartInspectorMWC
 			RebuildDisplays();
 			PrintToConsole("Detecting player hand camera...", ConsoleMessageScope.Core);
 			_plyCam = GameObject.Find("PLAYER/Pivot/AnimPivot/Camera/FPSCamera/1Hand_Assemble/Hand").GetPlayMaker("PickUp").FsmVariables;
+			_toolMode = PlayMakerGlobals.Instance.Variables.FindFsmBool("PlayerHandRight");
 			stopwatch.Stop();
 			PrintToConsole($"{Name} initialized after {stopwatch.Elapsed.Milliseconds} ms!", ConsoleMessageScope.Core);
 		}
@@ -275,6 +276,10 @@ namespace Ceres.PartInspectorMWC
 		/// </summary>
 		private void UpdateInspection()
 		{
+			// entirely skip inspection if tool mode is active
+			// otherwise, if the player is looking at something when switching modes, its name will get stuck on the screen
+			if (_toolMode.Value) 
+				return;
 			GameObject lookedObj = _plyCam.GetFsmGameObject("RaycastHitObject")?.Value;
 			if (lookedObj != null)
 			{
@@ -390,12 +395,6 @@ namespace Ceres.PartInspectorMWC
 					if (!SettingShowCarPartCondition.GetValue())
 						break;
 					newTrackerType = typeof(OilFilterTracker);
-					break;
-				case TrackerType.SparkPlug:
-					// ditto
-					if (!SettingShowCarPartCondition.GetValue())
-						break;
-					newTrackerType = typeof(SparkPlugTracker);
 					break;
 				case TrackerType.Fullness:
 					FullnessInfo fi = (FullnessInfo)trackerInfo;
