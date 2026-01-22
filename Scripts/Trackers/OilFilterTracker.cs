@@ -6,7 +6,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 	/// <summary>
 	/// Tracks how dirty an oil filter is.
 	/// </summary>
-	internal class OilFilterTracker : BaseWearTracker
+	internal class OilFilterTracker : BaseTracker
 	{
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()

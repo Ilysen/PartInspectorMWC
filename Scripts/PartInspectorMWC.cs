@@ -25,15 +25,25 @@ namespace Ceres.PartInspectorMWC
 		internal static SettingsDropDownList SettingDisplayLocation;
 		internal static SettingsDropDownList SettingDisplayPrecision;
 		internal static SettingsDropDownList SettingItemDisplayPrecision;
+		internal static SettingsDropDownList SettingBoltSizePrecision;
 		internal static SettingsSliderInt SettingTextUpdateFrequency;
 
 		internal static SettingsCheckBox SettingShowCarPartCondition;
 		internal static SettingsCheckBox SettingShowContainerFullness;
 		internal static SettingsCheckBox SettingShowPackageQuantity;
 		internal static SettingsCheckBox SettingShowObjectVariants;
+		internal static SettingsCheckBox SettingShowBoltSizes;
 
 		internal static SettingsCheckBox SettingLogVerification;
 		internal static SettingsCheckBox SettingLogNewTrackers;
+		internal static SettingsCheckBox SettingLogBoltSize;
+		/// <summary>
+		/// Because a lot of <see cref="PrintToConsole(object, ConsoleMessageScope)"/> calls happen every frame,
+		/// we use these variables to cache the values of their respective settings, rather than getting the setting's value every time.<br/><br/>
+		/// (programmer's note: I don't actually have any idea if it's cheaper to cache locally than it is to call the bool getter on the setting itself.
+		/// I figure that there's no harm in it, though!)
+		/// </summary>
+		internal static bool _logVerification, _logNewTrackers, _logBoltSize;
 
 		public override void ModSetup()
 		{
@@ -46,32 +56,99 @@ namespace Ceres.PartInspectorMWC
 		{
 			Color headingColor = new Color(0.1f, 0.1f, 0.1f);
 
-			Settings.AddHeader("Interface", headingColor, Color.white);
-			SettingDisplayLocation = Settings.AddDropDownList("displayLocation", "Where to display information",
-				new string[] { "In the item's name (recommended)", "In interaction text" }, 0, RefreshDisplayGUI);
-			SettingDisplayPrecision = Settings.AddDropDownList("displayPrecision", "Part inspection precision",
-				new string[] { "Show exact information", "Show general description", "Show broken/not broken" }, 1);
-			SettingItemDisplayPrecision = Settings.AddDropDownList("itemDisplayPrecision", "Item inspection precision",
-				new string[] { "Show exact information", "Show general description" }, 1);
-			SettingTextUpdateFrequency = Settings.AddSlider("updateFrequency", "Text update frequency<color=yellow>*</color>",
-				1, 10, 10, RebuildDisplays);
-			Settings.AddText("<color=yellow>* Lowering this might have an impact on performance. Only use it if you find the default rate to be too sluggish.</color>");
-
 			Settings.AddHeader("Trackers", headingColor, Color.white);
-			SettingShowCarPartCondition = Settings.AddCheckBox("showCarPartCondition", "Show car part condition", true);
+			SettingShowCarPartCondition = Settings.AddCheckBox(nameof(SettingShowCarPartCondition), "Show car part condition", true);
 			Settings.AddText("Includes every car part that can wear down, get dirty, or be broken.");
-			SettingShowContainerFullness = Settings.AddCheckBox("showContainerFullness", "Show container fullness", true);
+			SettingShowContainerFullness = Settings.AddCheckBox(nameof(SettingShowContainerFullness), "Show container fullness", true);
 			Settings.AddText("Includes fluids (motor oil, coolant, etc.) as well as solids (ground coffee and grill charcoal).");
-			SettingShowPackageQuantity = Settings.AddCheckBox("showPackageQuantity", "Show package quantity", true);
-			Settings.AddText("For R20 batteries and fuse boxes: Displays the amount left in the package.");
-			SettingShowObjectVariants = Settings.AddCheckBox("showObjectVariants", "Show object variants", true);
+			SettingShowPackageQuantity = Settings.AddCheckBox(nameof(SettingShowPackageQuantity), "Show package quantity", true);
+			Settings.AddText("For R20 batteries and fuse boxes. Displays the amount left in the package.");
+			SettingShowObjectVariants = Settings.AddCheckBox(nameof(SettingShowObjectVariants), "Show object variants", true);
 			Settings.AddText("A part's variant will be shown in its display name. For things like instrument panels, grilles, and brake lines.");
+			SettingShowBoltSizes = Settings.AddCheckBox(nameof(SettingShowBoltSizes), "Show bolt sizes", false,
+				() => _showBoltSizes = SettingShowBoltSizes.GetValue());
+			Settings.AddText("When in tool mode, shows the size of whatever bolt you're looking at. Can be configured to have " +
+				"more or less precision; see below.");
+
+			Settings.AddHeader("Interface", headingColor, Color.white);
+			Settings.AddText("Some of these settings won't do anything without specific trackers being enabled!");
+			SettingDisplayLocation = Settings.AddDropDownList(nameof(SettingDisplayLocation), "Where to display information",
+				new string[] { "In the item's name (recommended)", "In interaction text" }, 0, RefreshDisplayGUI);
+			SettingDisplayPrecision = Settings.AddDropDownList(nameof(SettingDisplayPrecision), "Part inspection precision",
+				new string[] { "Show exact information", "Show general description", "Show broken/not broken" }, 1);
+			SettingItemDisplayPrecision = Settings.AddDropDownList(nameof(SettingItemDisplayPrecision), "Item inspection precision",
+				new string[] { "Show exact information", "Show general description" }, 1);
+			SettingBoltSizePrecision = Settings.AddDropDownList(nameof(SettingBoltSizePrecision), "Bolt size precision",
+				new string[] { "Show exact information", "Show general description", "Show too big/too small only" }, 1,
+				() => _boltSizeMode = SettingBoltSizePrecision.GetSelectedItemIndex());
+			SettingTextUpdateFrequency = Settings.AddSlider(nameof(SettingTextUpdateFrequency), "Text update frequency<color=yellow>*</color>",
+				1, 10, 10, RebuildDisplays);
+			Settings.AddText("<color=yellow>* Lowering this might have an impact on performance. " +
+				"Only use it if you find the default rate to be too sluggish.</color>");
 
 			Settings.AddHeader("Logging", headingColor, Color.white);
 			Settings.AddText("If you're running into bugs, these settings will put extra info into your log that'll help the author diagnose the issues. Keep them all off for regular play, but please turn them on when submitting a bug report!");
-			SettingLogNewTrackers = Settings.AddCheckBox("logNewTrackers", "Log new trackers", false);
-			SettingLogVerification = Settings.AddCheckBox("logVerification", "Log object verification <color=yellow>(warning: laggy)</color>", false);
+			SettingLogNewTrackers = Settings.AddCheckBox(nameof(SettingLogNewTrackers), "Log new trackers", false,
+				() => _logNewTrackers = SettingLogNewTrackers.GetValue());
+			SettingLogVerification = Settings.AddCheckBox(nameof(SettingLogVerification), "Log object verification <color=yellow>(warning: laggy)</color>", false,
+				() => _logVerification = SettingLogVerification.GetValue());
+			SettingLogBoltSize = Settings.AddCheckBox(nameof(SettingLogBoltSize), "Log bolt size inspection <color=red>(warning: makes tool mode very laggy)</color>", false,
+				() => _logBoltSize = SettingLogBoltSize.GetValue());
 		}
+		#endregion
+
+		#region Cached vars
+		/// <summary>
+		/// Cached reference to the interaction GUI global.
+		/// </summary>
+		private FsmString _interactionGui;
+		/// <summary>
+		/// Cached reference to the item name display global.
+		/// </summary>
+		private FsmString _pickedPartGui;
+
+		/// <summary>
+		/// Cached references to the value of <see cref="SettingShowBoltSizes"/>.
+		/// </summary>
+		private bool _showBoltSizes;
+
+		/// <summary>
+		/// Cached reference to the value of <see cref="SettingBoltSizePrecision"/>.
+		/// </summary>
+		private int _boltSizeMode = 3;
+
+		/// <summary>
+		/// Cached reference to the bolt we're showing the size of.
+		/// </summary>
+		private GameObject _lastBoltInspected;
+
+		/// <summary>
+		/// Calculated display text for the bolt we're looking at.
+		/// Caching this means we don't have to do a bunch of math every frame.
+		/// </summary>
+		private string _boltSizeText;
+
+		/// <summary>
+		/// Cached reference to the FSM used to track the object the player is currently looking at.
+		/// We use this instead of <see cref="UnifiedRaycast"/> because it lets us benefit from the game's own logic
+		/// on determining what object's name should be displaying, which the unified raycast does not.
+		/// </summary>
+		private FsmGameObject _plyCamObject;
+
+		/// <summary>
+		/// Cached reference to whether or not the player is in tool mode.
+		/// </summary>
+		private FsmBool _toolMode;
+
+		/// <summary>
+		/// Cached reference to the size of the currently equipped tool.
+		/// </summary>
+		private FsmFloat _curWrenchSize;
+
+		/// <summary>
+		/// Cached reference to whatever bolt the player is looking at.
+		/// </summary>
+		private FsmGameObject _curBolt;
 		#endregion
 
 		#region Internal vars
@@ -172,10 +249,11 @@ namespace Ceres.PartInspectorMWC
 		/// <summary>
 		/// Every wear tracker in the game world, associated to its game object.
 		/// </summary>
-		private Dictionary<GameObject, BaseWearTracker> _wearTrackers;
+		private Dictionary<GameObject, BaseTracker> _allTrackers;
 
 		/// <summary>
-		/// The text GUI used to display the part's condition. Can either be within the part's name or in a separate area.
+		/// The text GUI used to display the part's condition. This will always point to either <see cref="_pickedPartGui"/> or <see cref="_interactionGui"/>,
+		/// depending on the value of <see cref="SettingDisplayLocation"/>.
 		/// </summary>
 		private FsmString _displayGui;
 
@@ -188,15 +266,6 @@ namespace Ceres.PartInspectorMWC
 		/// How many seconds have elapsed since we last updated displays. See <see cref="_timeBetweenUpdates"/> for more info.
 		/// </summary>
 		private float _updateTimer = 0f;
-
-		/// <summary>
-		/// A cached reference to the FSM used to track the object the player is currently looking at.
-		/// We use this instead of <see cref="UnifiedRaycast"/> because it lets us benefit from the game's own logic
-		/// on determining what object's name should be displaying, which the unified raycast does not.
-		/// </summary>
-		private FsmVariables _plyCam;
-
-		private FsmBool _toolMode;
 		#endregion
 
 		#region Debug
@@ -204,45 +273,70 @@ namespace Ceres.PartInspectorMWC
 		{
 			Core, // Core logic that we always log
 			NewTrackers, // Whenever a new tracker is created
-			Verification // Detailed steps for detecting if a given object is a valid part
+			Verification, // Detailed steps for detecting if a given object is a valid part
+			BoltInspection // Step-by-step process for viewing bolts
 		}
 
 		internal static void PrintToConsole(object Message, ConsoleMessageScope Context)
 		{
-			if (Context == ConsoleMessageScope.Verification && !SettingLogVerification.GetValue())
+			if (Context == ConsoleMessageScope.Verification && !_logVerification)
 				return;
-			if (Context == ConsoleMessageScope.NewTrackers && !SettingLogNewTrackers.GetValue())
+			if (Context == ConsoleMessageScope.NewTrackers && !_logNewTrackers)
+				return;
+			if (Context == ConsoleMessageScope.BoltInspection && !_logBoltSize)
 				return;
 			ModConsole.Print($"[PI] {Message}");
 		}
 		#endregion
 
 		#region Main functions
-
 		private void Mod_OnLoad()
 		{
-			Stopwatch stopwatch = new Stopwatch();
-			stopwatch.Start();
-			PrintToConsole($"{Name} version {Version} is attempting to initialize!", ConsoleMessageScope.Core);
-			_wearTrackers = new Dictionary<GameObject, BaseWearTracker>();
-			PrintToConsole("Setting stuff up...", ConsoleMessageScope.Core);
-			RefreshDisplayGUI();
-			RebuildDisplays();
-			PrintToConsole("Detecting player hand camera...", ConsoleMessageScope.Core);
-			_plyCam = GameObject.Find("PLAYER/Pivot/AnimPivot/Camera/FPSCamera/1Hand_Assemble/Hand").GetPlayMaker("PickUp").FsmVariables;
-			_toolMode = PlayMakerGlobals.Instance.Variables.FindFsmBool("PlayerHandRight");
-			stopwatch.Stop();
-			PrintToConsole($"{Name} initialized after {stopwatch.Elapsed.Milliseconds} ms!", ConsoleMessageScope.Core);
+			try
+			{
+				Stopwatch stopwatch = new Stopwatch();
+				stopwatch.Start();
+				PrintToConsole($"{Name} version {Version} is attempting to initialize!", ConsoleMessageScope.Core);
+
+				PrintToConsole("Caching objects and variables...", ConsoleMessageScope.Core);
+				FsmVariables plyCam = GameObject.Find("PLAYER/Pivot/AnimPivot/Camera/FPSCamera/1Hand_Assemble/Hand").GetPlayMaker("PickUp").FsmVariables;
+				_plyCamObject = plyCam.GetFsmGameObject("RaycastHitObject");
+
+				_toolMode = PlayMakerGlobals.Instance.Variables.FindFsmBool("PlayerHandRight");
+				_interactionGui = PlayMakerGlobals.Instance.Variables.FindFsmString("GUIinteraction");
+				_pickedPartGui = PlayMakerGlobals.Instance.Variables.FindFsmString("PickedPart");
+				_boltSizeMode = SettingBoltSizePrecision.GetSelectedItemIndex();
+				GameObject wrenchRaycast = GameObject.Find("PLAYER/Pivot/AnimPivot/Camera/FPSCamera/2Spanner/Raycast");
+				_curWrenchSize = PlayMakerGlobals.Instance.Variables.FindFsmFloat("ToolWrenchSize");
+				_curBolt = wrenchRaycast.GetPlayMaker("Raycast").FsmVariables.GetFsmGameObject("Bolt");
+				_showBoltSizes = SettingShowBoltSizes.GetValue();
+				_logNewTrackers = SettingLogNewTrackers.GetValue();
+				_logVerification = SettingLogVerification.GetValue();
+				_logBoltSize = SettingLogBoltSize.GetValue();
+
+				PrintToConsole("Setting display UI...", ConsoleMessageScope.Core);
+				RefreshDisplayGUI();
+				PrintToConsole("Finalizing setup...", ConsoleMessageScope.Core);
+				_allTrackers = new Dictionary<GameObject, BaseTracker>();
+				RebuildDisplays();
+
+				stopwatch.Stop();
+				PrintToConsole($"{Name} initialized after {stopwatch.Elapsed.Milliseconds} ms!", ConsoleMessageScope.Core);
+			} catch (Exception e) {
+				ModConsole.Error($"{Name} version {Version} failed to initialize!!! Error: {e.StackTrace}");
+			}
 		}
 
 		private void Mod_OnUpdate()
 		{
 			UpdateDisplays();
 			UpdateInspection();
+			UpdateBolts();
 		}
 
 		/// <summary>
-		/// Manipulate the value of <see cref="_updateTimer"/> and update display texts as needed.
+		/// Updates the display text of all existing trackers every <see cref="_timeBetweenUpdates"/> seconds.<br/>
+		/// Also removes entries in <see cref="_allTrackers"/> that have deleted game objects.
 		/// </summary>
 		private void UpdateDisplays()
 		{
@@ -251,7 +345,7 @@ namespace Ceres.PartInspectorMWC
 			{
 				_updateTimer = 0f;
 				List<GameObject> toRemove = new List<GameObject>();
-				foreach (KeyValuePair<GameObject, BaseWearTracker> kvp in _wearTrackers)
+				foreach (KeyValuePair<GameObject, BaseTracker> kvp in _allTrackers)
 				{
 					// Ensure that destroyed objects have their trackers disposed properly from the master list
 					// We do this after iteration to avoid runtimes
@@ -266,13 +360,15 @@ namespace Ceres.PartInspectorMWC
 				foreach (var obj in toRemove)
 				{
 					PrintToConsole("Removing null tracker...", ConsoleMessageScope.NewTrackers);
-					_wearTrackers.Remove(obj);
+					_allTrackers.Remove(obj);
 				}
 			}
 		}
 
 		/// <summary>
-		/// Raycasts to find if the player is looking at a part. If so, displays the text from that part's wear tracker.
+		/// Reads whatever the player is currently looking at, adding or referencing trackers as needed.
+		/// This entire function is where the sauce happens, so to speak.<br/><br/>
+		/// <b>Always skipped if tool mode is TRUE.</b>
 		/// </summary>
 		private void UpdateInspection()
 		{
@@ -280,15 +376,16 @@ namespace Ceres.PartInspectorMWC
 			// otherwise, if the player is looking at something when switching modes, its name will get stuck on the screen
 			if (_toolMode.Value) 
 				return;
-			GameObject lookedObj = _plyCam.GetFsmGameObject("RaycastHitObject")?.Value;
+			GameObject lookedObj = _plyCamObject.Value;
 			if (lookedObj != null)
 			{
 				PrintToConsole($"Checking if valid object: {lookedObj.name}", ConsoleMessageScope.Verification);
-				if (_wearTrackers.Keys.Contains(lookedObj))
+				if (_allTrackers.Keys.Contains(lookedObj))
 				{
 					PrintToConsole("-> Object already has a tracker. Returning.", ConsoleMessageScope.Verification);
-					BaseWearTracker wt = _wearTrackers[lookedObj];
-					_displayGui.Value = wt.DisplayText;
+					BaseTracker wt = _allTrackers[lookedObj];
+					if (wt.DisplayText != string.Empty)
+						_displayGui.Value = wt.DisplayText;
 					return;
 				}
 
@@ -330,7 +427,7 @@ namespace Ceres.PartInspectorMWC
 						}
 						else
 						{
-							if (_wearTrackers.Keys.Contains(lookedObj.transform.parent.gameObject))
+							if (_allTrackers.Keys.Contains(lookedObj.transform.parent.gameObject))
 							{
 								PrintToConsole("--> Parent object was found but already tracked. Returning.", ConsoleMessageScope.Verification);
 								return;
@@ -346,9 +443,82 @@ namespace Ceres.PartInspectorMWC
 		}
 
 		/// <summary>
+		/// Handles bolt size display: detects bolts, calculates size, and displays readable text.<br/><br/>
+		/// <b>Always skipped if tool mode is FALSE.</b>
+		/// </summary>
+		private void UpdateBolts()
+		{
+			if (!_showBoltSizes)
+				return;
+			if (!_toolMode.Value)
+				return;
+			PrintToConsole("Inspecting bolts...", ConsoleMessageScope.BoltInspection);
+			if (_curBolt.Value == _lastBoltInspected) // we're lookin at it -- show the text
+			{
+				PrintToConsole("...We're looking at the cached bolt. Going with that.", ConsoleMessageScope.BoltInspection);
+				if (_boltSizeText != string.Empty)
+					_displayGui.Value = _boltSizeText;
+				return;
+			}
+			_boltSizeText = string.Empty;
+			float toolSize = _curWrenchSize.Value;
+			if (toolSize == 0.65f)
+			{
+				PrintToConsole("...Returning because we're holding a screwdriver.", ConsoleMessageScope.BoltInspection);
+				_boltSizeText = "Need screwdriver";
+				return;
+			}
+			if (!_curBolt.Value)
+			{
+				PrintToConsole("...Returning because there's no bolt.", ConsoleMessageScope.BoltInspection);
+				_lastBoltInspected = null;
+				return;
+			}
+			PrintToConsole("-> Viewing data...", ConsoleMessageScope.BoltInspection);
+			float? boltSize = _curBolt.Value.GetPlayMaker("Screw")?.FsmVariables.GetFsmFloat("Boltsize").Value;
+			if (boltSize == null)
+			{
+				PrintToConsole("...Bolt size is null. Returning.", ConsoleMessageScope.BoltInspection);
+				return;
+			}
+			PrintToConsole($"-> Caching new bolt. Size: {boltSize}", ConsoleMessageScope.BoltInspection);
+			_lastBoltInspected = _curBolt.Value;
+			if (boltSize == 0.65f) // this is a screw, not a bolt!
+			{
+				PrintToConsole("...This is a screw, not a bolt. Returning.", ConsoleMessageScope.BoltInspection);
+				return;
+			}
+			if (toolSize == boltSize)
+			{
+				PrintToConsole("...Tool size is correct. Returning", ConsoleMessageScope.BoltInspection);
+				return;
+			}
+			string toDisplay = null;
+			PrintToConsole("-> Calculating display text...", ConsoleMessageScope.BoltInspection);
+			switch (_boltSizeMode)
+			{
+				case 0: // Show exact size
+					toDisplay = $"Size {boltSize * 10f}";
+					break;
+				case 1: // Show relative directionality
+					float dist = Math.Abs((float)(toolSize - boltSize));
+					string direction = $"{(dist > 0.3f ? "Way" : "Slightly")} Too {(toolSize > boltSize ? "Big" : "Small")}";
+					toDisplay = $"Wrench {direction}";
+					break;
+				case 2: // Show directionality only
+					toDisplay = $"Wrench Too {(toolSize > boltSize ? "Big" : "Small")}";
+					break;
+			}
+			PrintToConsole($"-> Text to display: \"{toDisplay}\"", ConsoleMessageScope.BoltInspection);
+			_boltSizeText = toDisplay;
+			PrintToConsole("Bolt and text now cached and displaying until we look away.", ConsoleMessageScope.BoltInspection);
+			_displayGui.Value = _boltSizeText;
+		}
+
+		/// <summary>
 		/// Updates the value of <see cref="_displayGui"/> based on user settings.
 		/// </summary>
-		private void RefreshDisplayGUI() => _displayGui = PlayMakerGlobals.Instance.Variables.FindFsmString(SettingDisplayLocation.GetSelectedItemIndex() == 0 ? "PickedPart" : "GUIinteraction");
+		private void RefreshDisplayGUI() => _displayGui = SettingDisplayLocation.GetSelectedItemIndex() == 0 ? _pickedPartGui : _interactionGui;
 
 		/// <summary>
 		/// Simple wrapper to adjust relevant values when update frequency settings are changed.
@@ -376,7 +546,7 @@ namespace Ceres.PartInspectorMWC
 				tt = TrackerType.Fullness;
 			else if (trackerInfo is VariantInfo)
 				tt = TrackerType.Variant;
-			BaseWearTracker bwt = null;
+			BaseTracker bwt = null;
 			Type newTrackerType = null;
 			switch (tt)
 			{
@@ -422,17 +592,17 @@ namespace Ceres.PartInspectorMWC
 					ModConsole.Error($"Part Inspector attempted to initialize with an invalid tracker type: {tt}");
 					return;
 			}
-			if (newTrackerType != null && typeof(BaseWearTracker).IsAssignableFrom(newTrackerType))
+			if (newTrackerType != null && typeof(BaseTracker).IsAssignableFrom(newTrackerType))
 			{
 				PrintToConsole($"Initializing new tracker  (type: {newTrackerType})", ConsoleMessageScope.NewTrackers);
-				BaseWearTracker bt = (BaseWearTracker)gameObj.AddComponent(newTrackerType);
+				BaseTracker bt = (BaseTracker)gameObj.AddComponent(newTrackerType);
 				bt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Data").FsmVariables);
 				bwt = bt;
 			}
 			if (bwt != null)
 			{
 				bwt.BuildDisplayText();
-				_wearTrackers.Add(gameObj, bwt);
+				_allTrackers.Add(gameObj, bwt);
 				PrintToConsole($"A tracker component of type {bwt.GetType()} was added to an object named \"{gameObj.name}\".", ConsoleMessageScope.NewTrackers);
 			}
 		}

@@ -5,7 +5,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 	/// <summary>
 	/// Only tracks whether or not a part is intact or damaged, nothing else. Used for blocks and oilpans.
 	/// </summary>
-	internal class SimpleWearTracker : BaseWearTracker
+	internal class SimpleWearTracker : BaseTracker
 	{
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()

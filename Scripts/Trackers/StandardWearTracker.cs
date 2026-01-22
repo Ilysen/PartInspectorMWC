@@ -7,7 +7,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 	/// <summary>
 	/// Tracks the exact integrity of the assigned part using the provided information. Broken parts will display as broken.
 	/// </summary>
-	internal class StandardWearTracker : BaseWearTracker
+	internal class StandardWearTracker : BaseTracker
 	{
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()

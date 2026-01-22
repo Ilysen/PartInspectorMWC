@@ -6,7 +6,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 	/// <summary>
 	/// Base wear tracker class with shared logic.
 	/// </summary>
-	internal abstract class BaseWearTracker : MonoBehaviour
+	internal abstract class BaseTracker : MonoBehaviour
 	{
 		/// <summary>
 		/// The human-readable name for the part this component is attached to.

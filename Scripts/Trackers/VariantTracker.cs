@@ -11,7 +11,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 	/// Conveniently for us, alternator belts and spark plugs currently use the exact same value names to track wear,
 	/// so right now we just inherit the logic to avoid duplicated code, with some exceptions...
 	/// </summary>
-	internal class VariantTracker : BaseWearTracker
+	internal class VariantTracker : BaseTracker
 	{
 		/// <summary>
 		/// The name of the FSM variable that keeps track of this object's variant.

@@ -25,8 +25,10 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 		* Bumper: Facelift or pre-facelift
 		* Brake lines/master cylinder: Standard or power
 		* Exhaust pipe front: Standard or GT
+	* Added a QoL setting, disabled by default, that shows the size of a bolt you're looking at while in tool mode. Mainly meant so you don't have to install another mod for it.
 	* Changed the thresholds for standard part wear to encourage more caution:
 		* Shoddy: Now 35% to 25% (previously 35% to 20%)
 		* Bad: Now 25% to 15% (previously 20% to 10%)
 		* Terrible: Now 15% and below (previously 10% and below)
+	* Fullness and quantity trackers will now update in real-time as you use them. Vanilla limitations mean that some, like motor oil, still only update intermittently.
 	* Fixed a long-standing bug where where looking at objects from specific angles wouldn't consistently inspect them. Results are now always displayed whenever the object's name is visible.

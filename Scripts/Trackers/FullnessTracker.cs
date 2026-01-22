@@ -11,7 +11,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 	/// <br/><br/>
 	/// Because they already have a built-in way of checking their contents, gasoline and diesel canisters are excluded.
 	/// </summary>
-	internal class FullnessTracker : BaseWearTracker
+	internal class FullnessTracker : BaseTracker
 	{
 		/// <summary>
 		/// Used to track initialization info for fullness trackers, which have to account for many different values.
@@ -40,9 +40,9 @@ namespace Ceres.PartInspectorMWC.Trackers
 		private float _maxFullness = 1f;
 
 		/// <summary>
-		/// The name of the FSM variable that we're keeping track of. This varies by instance.
+		/// The FSM variable that we're keeping track of. This varies by instance.
 		/// </summary>
-		private string _fullnessKey = "Fluid";
+		private FsmFloat _fullness;
 
 		/// <summary>
 		/// If true, exact percentage display will show the remaining mL instead. If false, it'll show the percentage as usual.
@@ -55,7 +55,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 			base.Initialize(initName, fsmVars);
 			FullnessInfo fi = (FullnessInfo)extraArgs[0];
 			_maxFullness = fi.MaxValue;
-			_fullnessKey = fi.ValueKey;
+			_fullness = FsmVariables.GetFsmFloat(fi.ValueKey);
 			_displayAsFluid = fi.DisplayAsFluid;
 		}
 
@@ -65,15 +65,35 @@ namespace Ceres.PartInspectorMWC.Trackers
 		/// <summary>
 		/// Gets the remaining fluid for this tracker.
 		/// </summary>
-		private float GetFullnessLevel() => FsmVariables.GetFsmFloat(_fullnessKey).Value;
+		private float GetFullnessLevel() => _fullness.Value;
+
+		/// <summary>
+		/// How full this tracker was last frame.
+		/// If current fullness does not equal this value, we refresh the tracker's display text.
+		/// </summary>
+		private float _cachedFullnessLevel;
+
+		// you thought I was a bespoke class, but it was me, MonoBehavior!
+		private void Update()
+		{
+			// we do this so that the text updates in realtime while we're pouring a liquid, basically
+			// skipping the usual refresh period makes things feel a lot snappier
+			var curFullness = GetFullnessLevel();
+			if (curFullness != _cachedFullnessLevel)
+				BuildDisplayText();
+			_cachedFullnessLevel = curFullness;
+		}
 
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{
-			string newText;
-			float fullnessLevel = GetWearPercentage();
-			if (fullnessLevel <= 0)
+			if (GetFullnessLevel() < 1)
+			{
+				DisplayText = string.Empty;
 				return;
+			}
+			float fullnessLevel = GetWearPercentage();
+			string newText;
 			switch (PartInspectorScript.SettingItemDisplayPrecision.GetSelectedItemIndex())
 			{
 				case 1: // General description
