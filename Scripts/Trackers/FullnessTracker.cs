@@ -22,15 +22,19 @@ namespace Ceres.PartInspectorMWC.Trackers
 		{
 			internal string ValueKey;
 			internal float MaxValue;
+			internal float MinValue;
 			internal string FsmName;
 			internal bool DisplayAsFluid;
+			internal string ChildObjectName;
 
-			internal FullnessInfo(string FsmName = "Use", string ValueKey = "Fluid", float MaxValue = default, bool DisplayAsFluid = default)
+			internal FullnessInfo(string FsmName = "Use", string ValueKey = "Fluid", float MaxValue = default, float MinValue = 0, bool DisplayAsFluid = default, string ChildObjectName = null)
 			{
 				this.ValueKey = ValueKey;
 				this.MaxValue = MaxValue;
+				this.MinValue = MinValue;
 				this.FsmName = FsmName;
 				this.DisplayAsFluid = DisplayAsFluid;
+				this.ChildObjectName = ChildObjectName;
 			}
 		}
 
@@ -38,6 +42,8 @@ namespace Ceres.PartInspectorMWC.Trackers
 		/// The max fluid that this container can hold. Assigned in <see cref="Ceres.PartInspectorMWC.CreateTrackerForPart(GameObject, PartInspectorMWC.TrackerType)"/> during initialization and used to calculate fractions (i.e. "half full") in <see cref="BuildDisplayText"/>.
 		/// </summary>
 		private float _maxFullness = 1f;
+
+		private float _minFullness = 0f;
 
 		/// <summary>
 		/// The FSM variable that we're keeping track of. This varies by instance.
@@ -55,6 +61,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 			base.Initialize(initName, fsmVars);
 			FullnessInfo fi = (FullnessInfo)extraArgs[0];
 			_maxFullness = fi.MaxValue;
+			_minFullness = fi.MinValue;
 			_fullness = FsmVariables.GetFsmFloat(fi.ValueKey);
 			_displayAsFluid = fi.DisplayAsFluid;
 		}
@@ -80,14 +87,19 @@ namespace Ceres.PartInspectorMWC.Trackers
 			// skipping the usual refresh period makes things feel a lot snappier
 			var curFullness = GetFullnessLevel();
 			if (curFullness != _cachedFullnessLevel)
-				BuildDisplayText();
+			{
+				if (curFullness <= _minFullness && _cachedFullnessLevel > _minFullness)
+					DisplayText = "Empty";
+				else
+					BuildDisplayText();
+			}
 			_cachedFullnessLevel = curFullness;
 		}
 
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{
-			if (GetFullnessLevel() < 1)
+			if (GetFullnessLevel() <= _minFullness)
 			{
 				DisplayText = string.Empty;
 				return;

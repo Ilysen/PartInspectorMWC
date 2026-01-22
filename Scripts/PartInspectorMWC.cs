@@ -191,24 +191,24 @@ namespace Ceres.PartInspectorMWC
 		/// <br/><br/>
 		/// Names with an associated string will be given a <see cref="StandardWearTracker"/> using that string as the wear key; names with an associated <see cref="TrackerType"/> will instead use that type when creating the tracker.
 		/// </summary>
-		// msc is so spaghetti. modding is a pathway to abilities some consider to be unnatural
+		// mmmmm yummy pasta
 		private readonly Dictionary<string, object> _partNames = new Dictionary<string, object>
 		{
 			{ "Engine Block(VINX0)", TrackerType.Simple },
 			{ "Oilpan(VINXX)", TrackerType.Simple },
 
-			{ "automatic transmission fluid(itemx)", new FullnessInfo(MaxValue: 1f, DisplayAsFluid: true ) },
-			{ "brake fluid(itemx)", new FullnessInfo(MaxValue: 1f, DisplayAsFluid: true ) },
-			{ "two stroke fuel(itemx)", new FullnessInfo(MaxValue: 5f, DisplayAsFluid: true ) },
-			{ "motor oil(itemx)", new FullnessInfo(MaxValue: 4f, DisplayAsFluid: true ) },
-			{ "coolant(itemx)", new FullnessInfo(MaxValue: 10f, DisplayAsFluid: true ) },
+			{ "automatic transmission fluid(itemx)", new FullnessInfo("Data", MaxValue: 1f, DisplayAsFluid: true, ChildObjectName: "ATFOilTrigger" ) },
+			{ "brake fluid(itemx)", new FullnessInfo("Data", MaxValue: 1f, DisplayAsFluid: true, ChildObjectName: "BrakeFluidTrigger" ) },
+			{ "two stroke fuel(itemx)", new FullnessInfo("Data", MaxValue: 5f, DisplayAsFluid: true, ChildObjectName: "MotorOilTrigger" ) },
+			{ "motor oil(itemx)", new FullnessInfo("Data", MaxValue: 4f, DisplayAsFluid: true, ChildObjectName: "MotorOilTrigger" ) },
+			{ "coolant(itemx)", new FullnessInfo("Data", MaxValue: 10f, DisplayAsFluid: true, ChildObjectName: "CoolantTrigger" ) },
 
 			{ "Oil filter(VINXX)", TrackerType.OilFilter },
 			{ "spray can(itemx)", new FullnessInfo(MaxValue: 100f ) },
 			{ "mosquito spray(itemx)", new FullnessInfo(MaxValue: 100f ) },
-			{ "Fire Extinguisher(VINXX)", new FullnessInfo(MaxValue: 100f, FsmName: "Data" ) },
-			{ "ground coffee(itemx)", new FullnessInfo(ValueKey: "Ground", MaxValue: 100f ) },
-			{ "grill charcoal(itemx)", new FullnessInfo(ValueKey: "Contents", MaxValue: 140f ) },
+			{ "Fire Extinguisher(VINXX)", new FullnessInfo("Data", MaxValue: 100f ) },
+			{ "ground coffee(itemx)", new FullnessInfo(ValueKey: "Ground", MaxValue: 100f, MinValue: 1 ) },
+			{ "grill charcoal(itemx)", new FullnessInfo(ValueKey: "Contents", MaxValue: 140f, MinValue: 1 ) },
 
 			{ "spark plug box(Clone)", TrackerType.Quantity },
 			{ "r20 battery box(Clone)", TrackerType.Quantity },
@@ -224,6 +224,10 @@ namespace Ceres.PartInspectorMWC
 
 			{ "Exhaust Pipe Front(VINXX)", new VariantInfo( new Dictionary<object, string>{
 				{ 0, "Standard" }, { 1, "GT" }
+			}, typeof(int) ) },
+
+			{ "Bootlid(VINXX)", new VariantInfo( new Dictionary<object, string>{
+				{ 0, "Pre-Facelift" }, { 1, "Facelift" }, { 2, "GT" }
 			}, typeof(int) ) },
 
 			{ "Instrument Panel(VINXX)", new VariantInfo( new Dictionary<object, string>{
@@ -548,6 +552,7 @@ namespace Ceres.PartInspectorMWC
 				tt = TrackerType.Variant;
 			BaseTracker bwt = null;
 			Type newTrackerType = null;
+			PrintToConsole($"Creating tracker on game object {gameObj} with type: {tt}", ConsoleMessageScope.NewTrackers);
 			switch (tt)
 			{
 				case TrackerType.Standard:
@@ -570,9 +575,28 @@ namespace Ceres.PartInspectorMWC
 					FullnessInfo fi = (FullnessInfo)trackerInfo;
 					if (!SettingShowContainerFullness.GetValue())
 						break;
+					PrintToConsole("Creating fullness tracker...", ConsoleMessageScope.NewTrackers);
+					GameObject objToRead = gameObj;
+					if (fi.ChildObjectName != null)
+					{
+						PrintToConsole($"-> Finding child object with name: {fi.ChildObjectName}", ConsoleMessageScope.NewTrackers);
+						// this is necessary due to the way MWC handles the data on its fluid objects;
+						// the fullness value on the base object itself is generally not accurate, and instead
+						// the trigger object (of which the base object is a parent) holds the most up-to-date data
+						objToRead = objToRead.transform.Find(fi.ChildObjectName)?.gameObject;
+						if (objToRead == null)
+						{
+							PrintToConsole("-> Child object not found. Breaking.", ConsoleMessageScope.NewTrackers);
+							break;
+						}
+						else
+							PrintToConsole("-> Child object found. We'll reference its playmaker.", ConsoleMessageScope.NewTrackers);
+					}
+					PrintToConsole($"-> Final object to read FSM from: {objToRead}.", ConsoleMessageScope.NewTrackers);
 					FullnessTracker ft = gameObj.AddComponent<FullnessTracker>();
-					ft.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, fi.FsmName).FsmVariables, fi);
+					ft.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(objToRead, fi.FsmName).FsmVariables, fi);
 					bwt = ft;
+					PrintToConsole($"Fullness tracker initialized.", ConsoleMessageScope.NewTrackers);
 					break;
 				case TrackerType.Quantity:
 					if (!SettingShowPackageQuantity.GetValue())

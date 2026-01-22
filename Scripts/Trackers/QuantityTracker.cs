@@ -21,7 +21,12 @@ namespace Ceres.PartInspectorMWC.Trackers
 		{
 			var qty = _quantity.Value;
 			if (qty != _cachedQty)
-				BuildDisplayText();
+			{
+				if (qty == 0 && _cachedQty != 0)
+					DisplayText = "Empty";
+				else
+					BuildDisplayText();
+			}
 			_cachedQty = qty;
 		}
 
