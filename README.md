@@ -8,6 +8,12 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 
 ## Changelog
 
+### 23 january, 2026
+#### Version 0.1.2
+* Added quantity tracking for part packages purchased from Fleetari's shop.
+* Re-enables variant identification for front exhaust pipes.
+* Fixed an issue where parts at exactly 99 condition wouldn't give any information when looked at.
+
 ### 22 January, 2026
 #### Version 0.1.1
 * Hotfix for error spam when looking at the GT variant of the front exhaust pipe part. For now, it's just disabled until I can do a more proper implementation.

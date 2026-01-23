@@ -16,7 +16,7 @@ namespace Ceres.PartInspectorMWC
 		public override string ID => "Ceres_PartInspectorMWC";
 		public override string Name => "Part Inspector";
 		public override string Author => "Ceres et al.";
-		public override string Version => "0.1.1";
+		public override string Version => "0.1.2";
 		public override string Description => "Inspect your stuff for integrity, condition, and dirtiness.";
 		public override Game SupportedGames => Game.MyWinterCar;
 		#endregion
@@ -212,6 +212,7 @@ namespace Ceres.PartInspectorMWC
 			{ "spark plug box(Clone)", TrackerType.Quantity },
 			{ "r20 battery box(Clone)", TrackerType.Quantity },
 			{ "fuse package(Clone)", TrackerType.Quantity },
+			{ "package(Clone)", TrackerType.Quantity }, // for parts purchased from fleetari. not the most descriptive name in the world, huh?
 
 			{ "Brake Lines(VINXX)", new VariantInfo( new Dictionary<object, string>{
 				{ 1, "Standard Brakes" }, { 2, "Power Brakes" }
@@ -221,11 +222,9 @@ namespace Ceres.PartInspectorMWC
 				{ 1, "Standard Brakes" }, { 2, "Power Brakes" }
 			}, typeof(int) ) },
 
-			// exhaust pipe fronts are super special and have their own handling for this FOR SOME REASON
-			// currently commented out as a hotfix to prevent error spam, it will need a larger refactor to address
-			//{ "Exhaust Pipe Front(VINXX)", new VariantInfo( new Dictionary<object, string>{
-			//	{ 0, "Standard" }, { 1, "GT" }
-			//}, typeof(int) ) },
+			{ "Exhaust Pipe Front(VINXX)", new VariantInfo( new Dictionary<object, string>{
+				{ "ALL", "Standard" }, { "GT", "GT" }
+			}, typeof(string), "Code" ) },
 
 			{ "Bootlid(VINXX)", new VariantInfo( new Dictionary<object, string>{
 				{ 0, "Pre-Facelift" }, { 1, "Facelift" }, { 2, "GT" }
@@ -328,7 +327,9 @@ namespace Ceres.PartInspectorMWC
 				stopwatch.Stop();
 				PrintToConsole($"{Name} initialized after {stopwatch.Elapsed.Milliseconds} ms!", ConsoleMessageScope.Core);
 				PrintToConsole($"Enabled logging levels: {_logNewTrackers}, {_logVerification}, {_logBoltSize}", ConsoleMessageScope.Core);
-			} catch (Exception e) {
+			}
+			catch (Exception e)
+			{
 				ModConsole.Error($"{Name} version {Version} failed to initialize!!! Error: {e.StackTrace}");
 			}
 		}
@@ -380,7 +381,7 @@ namespace Ceres.PartInspectorMWC
 		{
 			// entirely skip inspection if tool mode is active
 			// otherwise, if the player is looking at something when switching modes, its name will get stuck on the screen
-			if (_toolMode.Value) 
+			if (_toolMode.Value)
 				return;
 			GameObject lookedObj = _plyCamObject.Value;
 			if (lookedObj != null)
@@ -407,7 +408,8 @@ namespace Ceres.PartInspectorMWC
 				{
 					PrintToConsole("-> DOES have Data fsm. Verifying if Wear is present...", ConsoleMessageScope.Verification);
 					FsmFloat wearVal = PlayMakerExtensions.GetVariable<FsmFloat>(dataFsm, "Wear");
-					if (wearVal == null || wearVal.Value == 99)
+					FsmFloat minWearVal = PlayMakerExtensions.GetVariable<FsmFloat>(dataFsm, "WearMin");
+					if (wearVal == null || (wearVal.Value == 99 && minWearVal == null))
 					{
 						PrintToConsole("--> Wear variable is not present or is 99 exactly. Checking name instead.", ConsoleMessageScope.Verification);
 						checkForName = true;

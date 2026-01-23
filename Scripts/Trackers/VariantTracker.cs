@@ -44,11 +44,17 @@ namespace Ceres.PartInspectorMWC.Trackers
 		{
 			object val = null;
 			if (_variantKeyType == typeof(string))
-				val = FsmVariables.FindFsmString(_variantKey).Value;
+				val = FsmVariables.FindFsmString(_variantKey)?.Value;
 			else if (_variantKeyType == typeof(int))
-				val = FsmVariables.FindFsmInt(_variantKey).Value;
+				val = FsmVariables.FindFsmInt(_variantKey)?.Value;
+			// this lets us use this tracker for parts that share a name without needing bespoke implementation
+			// i.e. aftermarket exhaust pipes, which share a name with stock/GT exhaust pipes but *don't* have a variant value
+			// this results in the tracker being added and just not doing anything. which isn't super clean but lets us avoid something bespoke
 			if (val == null)
+			{
+				DisplayText = string.Empty;
 				return;
+			}
 			string text = _variants[val];
 			DisplayText = $"{InitialName} ({text})";
 		}
