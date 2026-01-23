@@ -16,7 +16,7 @@ namespace Ceres.PartInspectorMWC
 		public override string ID => "Ceres_PartInspectorMWC";
 		public override string Name => "Part Inspector";
 		public override string Author => "Ceres et al.";
-		public override string Version => "0.1";
+		public override string Version => "0.1.1";
 		public override string Description => "Inspect your stuff for integrity, condition, and dirtiness.";
 		public override Game SupportedGames => Game.MyWinterCar;
 		#endregion
@@ -221,9 +221,11 @@ namespace Ceres.PartInspectorMWC
 				{ 1, "Standard Brakes" }, { 2, "Power Brakes" }
 			}, typeof(int) ) },
 
-			{ "Exhaust Pipe Front(VINXX)", new VariantInfo( new Dictionary<object, string>{
-				{ 0, "Standard" }, { 1, "GT" }
-			}, typeof(int) ) },
+			// exhaust pipe fronts are super special and have their own handling for this FOR SOME REASON
+			// currently commented out as a hotfix to prevent error spam, it will need a larger refactor to address
+			//{ "Exhaust Pipe Front(VINXX)", new VariantInfo( new Dictionary<object, string>{
+			//	{ 0, "Standard" }, { 1, "GT" }
+			//}, typeof(int) ) },
 
 			{ "Bootlid(VINXX)", new VariantInfo( new Dictionary<object, string>{
 				{ 0, "Pre-Facelift" }, { 1, "Facelift" }, { 2, "GT" }

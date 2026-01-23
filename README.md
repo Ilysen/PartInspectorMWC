@@ -9,6 +9,9 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 ## Changelog
 
 ### 22 January, 2026
+#### Version 0.1.1
+* Hotfix for error spam when looking at the GT variant of the front exhaust pipe part. For now, it's just disabled until I can do a more proper implementation.
+
 #### Version 0.1 (MWC RE-RELEASE)
 * Heavily refactored for My Winter Car:
 	* All new items and car parts should work properly.
