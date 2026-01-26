@@ -16,7 +16,7 @@ namespace Ceres.PartInspectorMWC
 		public override string ID => "Ceres_PartInspectorMWC";
 		public override string Name => "Part Inspector";
 		public override string Author => "Ceres et al.";
-		public override string Version => "0.1.2";
+		public override string Version => "0.1.3";
 		public override string Description => "Inspect your stuff for integrity, condition, and dirtiness.";
 		public override Game SupportedGames => Game.MyWinterCar;
 		#endregion
@@ -227,7 +227,7 @@ namespace Ceres.PartInspectorMWC
 			}, typeof(string), "Code" ) },
 
 			{ "Bootlid(VINXX)", new VariantInfo( new Dictionary<object, string>{
-				{ 0, "Pre-Facelift" }, { 1, "Facelift" }, { 2, "GT" }
+				{ 0, "L/Pre-Facelift GT" }, { 1, "LX/SLX" }, { 2, "Facelift GT" }
 			}, typeof(int) ) },
 
 			{ "Instrument Panel(VINXX)", new VariantInfo( new Dictionary<object, string>{

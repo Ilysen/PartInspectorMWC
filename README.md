@@ -8,7 +8,11 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 
 ## Changelog
 
-### 23 january, 2026
+### 26 January, 2026
+#### Version 0.1.3
+* Corrected variant names for bootlids.
+
+### 23 January, 2026
 #### Version 0.1.2
 * Added quantity tracking for part packages purchased from Fleetari's shop.
 * Re-enables variant identification for front exhaust pipes.
