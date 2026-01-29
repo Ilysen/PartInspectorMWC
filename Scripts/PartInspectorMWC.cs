@@ -33,6 +33,7 @@ namespace Ceres.PartInspectorMWC
 		internal static SettingsCheckBox SettingShowPackageQuantity;
 		internal static SettingsCheckBox SettingShowObjectVariants;
 		internal static SettingsCheckBox SettingShowBoltSizes;
+		internal static SettingsCheckBox SettingShowValveClearance;
 
 		internal static SettingsCheckBox SettingLogVerification;
 		internal static SettingsCheckBox SettingLogNewTrackers;
@@ -93,6 +94,12 @@ namespace Ceres.PartInspectorMWC
 				() => _logVerification = SettingLogVerification.GetValue());
 			SettingLogBoltSize = Settings.AddCheckBox(nameof(SettingLogBoltSize), "Log bolt size inspection <color=red>(warning: makes tool mode lag a lot)</color>", false,
 				() => _logBoltSize = SettingLogBoltSize.GetValue());
+
+			Settings.AddHeader("Experimental", Color.red, Color.white, true);
+			Settings.AddText("The following options are <b>experimental</b> and not intended for regular play. They may or may not work correctly. Use at your own risk - no support will be provided.");
+			SettingShowValveClearance = Settings.AddCheckBox(nameof(SettingShowValveClearance), "Show valve lash", false,
+				() => _showValveClearance = SettingShowValveClearance.GetValue());
+			Settings.AddText("When tuning rocker valves, displays their set clearance value. For if you want to tune without a save editor!");
 		}
 		#endregion
 
@@ -115,6 +122,8 @@ namespace Ceres.PartInspectorMWC
 		/// Cached reference to the value of <see cref="SettingBoltSizePrecision"/>.
 		/// </summary>
 		private int _boltSizeMode = 3;
+
+		private bool _showValveClearance;
 
 		/// <summary>
 		/// Cached reference to the bolt we're showing the size of.
@@ -218,9 +227,9 @@ namespace Ceres.PartInspectorMWC
 				{ 1, "Standard Brakes" }, { 2, "Power Brakes" }
 			}, typeof(int) ) },
 
-			{ "Brake Master Cylinder(VINXX)", new VariantInfo( new Dictionary<object, string>{
+			/*{ "Brake Master Cylinder(VINXX)", new VariantInfo( new Dictionary<object, string>{
 				{ 1, "Standard Brakes" }, { 2, "Power Brakes" }
-			}, typeof(int) ) },
+			}, typeof(int) ) },*/
 
 			{ "Exhaust Pipe Front(VINXX)", new VariantInfo( new Dictionary<object, string>{
 				{ "ALL", "Standard" }, { "GT", "GT" }
@@ -314,6 +323,7 @@ namespace Ceres.PartInspectorMWC
 				_curWrenchSize = PlayMakerGlobals.Instance.Variables.FindFsmFloat("ToolWrenchSize");
 				_curBolt = wrenchRaycast.GetPlayMaker("Raycast").FsmVariables.GetFsmGameObject("Bolt");
 				_showBoltSizes = SettingShowBoltSizes.GetValue();
+				_showValveClearance = SettingShowValveClearance.GetValue();
 				_logNewTrackers = SettingLogNewTrackers.GetValue();
 				_logVerification = SettingLogVerification.GetValue();
 				_logBoltSize = SettingLogBoltSize.GetValue();
@@ -482,7 +492,8 @@ namespace Ceres.PartInspectorMWC
 				return;
 			}
 			PrintToConsole("-> Viewing data...", ConsoleMessageScope.BoltInspection);
-			float? boltSize = _curBolt.Value.GetPlayMaker("Screw")?.FsmVariables.GetFsmFloat("Boltsize").Value;
+			var boltVals = _curBolt.Value.GetPlayMaker("Screw")?.FsmVariables;
+			float? boltSize = boltVals?.GetFsmFloat("Boltsize").Value;
 			if (boltSize == null)
 			{
 				PrintToConsole("...Bolt size is null. Returning.", ConsoleMessageScope.BoltInspection);
@@ -495,26 +506,41 @@ namespace Ceres.PartInspectorMWC
 				PrintToConsole("...This is a screw, not a bolt. Returning.", ConsoleMessageScope.BoltInspection);
 				return;
 			}
+			string toDisplay = string.Empty;
 			if (toolSize == boltSize)
 			{
+				if (_showValveClearance && boltSize == 1.2f)
+				{
+					var valveDraft = boltVals.FindFsmFloat("AdjustmentF");
+					if (valveDraft != null)
+					{
+						toDisplay = $"Valve lash - {Math.Round(valveDraft.Value / 100, 4)} mm";
+						PrintToConsole("...We're looking at a valve. Displaying lash.", ConsoleMessageScope.BoltInspection);
+						_lastBoltInspected = null; // since we're tuning in real-time, we need to constantly update this
+						goto calculateText;
+					}
+				}
 				PrintToConsole("...Tool size is correct. Returning", ConsoleMessageScope.BoltInspection);
 				return;
 			}
-			string toDisplay = null;
+		calculateText:
 			PrintToConsole("-> Calculating display text...", ConsoleMessageScope.BoltInspection);
-			switch (_boltSizeMode)
+			if (toDisplay == string.Empty)
 			{
-				case 0: // Show exact size
-					toDisplay = $"Size {boltSize * 10f}";
-					break;
-				case 1: // Show relative directionality
-					float dist = Math.Abs((float)(toolSize - boltSize));
-					string direction = $"{(dist > 0.3f ? "Way" : "Slightly")} Too {(toolSize > boltSize ? "Big" : "Small")}";
-					toDisplay = $"Wrench {direction}";
-					break;
-				case 2: // Show directionality only
-					toDisplay = $"Wrench Too {(toolSize > boltSize ? "Big" : "Small")}";
-					break;
+				switch (_boltSizeMode)
+				{
+					case 0: // Show exact size
+						toDisplay = $"Size {boltSize * 10f}";
+						break;
+					case 1: // Show relative directionality
+						float dist = Math.Abs((float)(toolSize - boltSize));
+						string direction = $"{(dist > 0.3f ? "Way" : "Slightly")} Too {(toolSize > boltSize ? "Big" : "Small")}";
+						toDisplay = $"Wrench {direction}";
+						break;
+					case 2: // Show directionality only
+						toDisplay = $"Wrench Too {(toolSize > boltSize ? "Big" : "Small")}";
+						break;
+				}
 			}
 			PrintToConsole($"-> Text to display: \"{toDisplay}\"", ConsoleMessageScope.BoltInspection);
 			_boltSizeText = toDisplay;
