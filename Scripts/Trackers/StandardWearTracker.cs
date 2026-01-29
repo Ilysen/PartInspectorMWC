@@ -12,9 +12,13 @@ namespace Ceres.PartInspectorMWC.Trackers
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{
-			float partWear = FsmVariables.GetFsmFloat("Wear").Value;
+			DisplayText = $"{InitialName} - {GetDescriptor(FsmVariables.GetFsmFloat("Wear").Value)}";
+		}
+
+		internal static string GetDescriptor(float WearVal)
+		{
 			string newText;
-			if (partWear <= 0) // Always display broken parts as just "broken"
+			if (WearVal <= 0) // Always display broken parts as just "broken"
 				newText = "Broken";
 			else
 			{
@@ -22,19 +26,19 @@ namespace Ceres.PartInspectorMWC.Trackers
 				{
 					case 1: // General description
 						string descriptor;
-						if (partWear >= 90)
+						if (WearVal >= 90)
 							descriptor = "mint";
-						else if (partWear >= 80)
+						else if (WearVal >= 80)
 							descriptor = "great";
-						else if (partWear >= 65)
+						else if (WearVal >= 65)
 							descriptor = "good";
-						else if (partWear >= 50)
+						else if (WearVal >= 50)
 							descriptor = "decent";
-						else if (partWear >= 35)
+						else if (WearVal >= 35)
 							descriptor = "shoddy";
-						else if (partWear >= 25)
+						else if (WearVal >= 25)
 							descriptor = "poor";
-						else if (partWear >= 15)
+						else if (WearVal >= 15)
 							descriptor = "bad";
 						else
 							descriptor = "terrible";
@@ -44,11 +48,11 @@ namespace Ceres.PartInspectorMWC.Trackers
 						newText = "Intact";
 						break;
 					default: // Exact percentage
-						newText = Mathf.RoundToInt(partWear) + "%";
+						newText = Mathf.RoundToInt(WearVal) + "%";
 						break;
 				}
 			}
-			DisplayText = $"{InitialName} - {newText}";
+			return newText;
 		}
 	}
 }

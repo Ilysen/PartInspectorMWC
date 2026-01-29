@@ -16,7 +16,7 @@ namespace Ceres.PartInspectorMWC
 		public override string ID => "Ceres_PartInspectorMWC";
 		public override string Name => "Part Inspector";
 		public override string Author => "Ceres et al.";
-		public override string Version => "0.1.3";
+		public override string Version => "0.1.4";
 		public override string Description => "Inspect your stuff for integrity, condition, and dirtiness.";
 		public override Game SupportedGames => Game.MyWinterCar;
 		#endregion
@@ -96,10 +96,10 @@ namespace Ceres.PartInspectorMWC
 				() => _logBoltSize = SettingLogBoltSize.GetValue());
 
 			Settings.AddHeader("Experimental", Color.red, Color.white, true);
-			Settings.AddText("The following options are <b>experimental</b> and not intended for regular play. They may or may not work correctly. Use at your own risk - no support will be provided.");
+			Settings.AddText("<color=yellow>The following options are <b>experimental</b> and not intended for regular play. They may or may not work correctly. Use at your own risk - no support will be provided.</color>");
 			SettingShowValveClearance = Settings.AddCheckBox(nameof(SettingShowValveClearance), "Show valve lash", false,
 				() => _showValveClearance = SettingShowValveClearance.GetValue());
-			Settings.AddText("When tuning rocker valves, displays their set clearance value. For if you want to tune without a save editor!");
+			Settings.AddText("When tuning rocker valves, displays their clearance. Useful for setting specific values without requiring a save editor.");
 		}
 		#endregion
 
@@ -170,7 +170,8 @@ namespace Ceres.PartInspectorMWC
 			OilFilter = 3,
 			Fullness = 4,
 			Quantity = 5,
-			Variant = 6
+			Variant = 6,
+			VariantAndWear = 7
 		}
 
 		/// <summary>
@@ -185,12 +186,14 @@ namespace Ceres.PartInspectorMWC
 			internal Dictionary<object, string> Variants;
 			internal string VariantKey;
 			internal Type VariantKeyType;
+			internal bool AlsoTracksWear;
 
-			internal VariantInfo(Dictionary<object, string> Variants, Type VariantKeyType, string VariantKey = "Type")
+			internal VariantInfo(Dictionary<object, string> Variants, Type VariantKeyType, string VariantKey = "Type", bool AlsoTracksWear = false)
 			{
 				this.Variants = Variants;
 				this.VariantKeyType = VariantKeyType;
 				this.VariantKey = VariantKey;
+				this.AlsoTracksWear = AlsoTracksWear;
 			}
 		}
 
@@ -227,9 +230,9 @@ namespace Ceres.PartInspectorMWC
 				{ 1, "Standard Brakes" }, { 2, "Power Brakes" }
 			}, typeof(int) ) },
 
-			/*{ "Brake Master Cylinder(VINXX)", new VariantInfo( new Dictionary<object, string>{
+			{ "Brake Master Cylinder(VINXX)", new VariantInfo( new Dictionary<object, string>{
 				{ 1, "Standard Brakes" }, { 2, "Power Brakes" }
-			}, typeof(int) ) },*/
+			}, typeof(int), AlsoTracksWear: true ) },
 
 			{ "Exhaust Pipe Front(VINXX)", new VariantInfo( new Dictionary<object, string>{
 				{ "ALL", "Standard" }, { "GT", "GT" }
@@ -577,8 +580,8 @@ namespace Ceres.PartInspectorMWC
 				tt = t;
 			else if (trackerInfo is FullnessInfo)
 				tt = TrackerType.Fullness;
-			else if (trackerInfo is VariantInfo)
-				tt = TrackerType.Variant;
+			else if (trackerInfo is VariantInfo vi)
+				tt = !vi.AlsoTracksWear ? TrackerType.Variant : TrackerType.VariantAndWear;
 			BaseTracker bwt = null;
 			Type newTrackerType = null;
 			PrintToConsole($"Creating tracker on game object {gameObj} with type: {tt}", ConsoleMessageScope.NewTrackers);
@@ -640,6 +643,13 @@ namespace Ceres.PartInspectorMWC
 					VariantTracker vt = gameObj.AddComponent<VariantTracker>();
 					vt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Data").FsmVariables, trackerInfo);
 					bwt = vt;
+					break;
+				case TrackerType.VariantAndWear:
+					if (!SettingShowObjectVariants.GetValue() || !SettingShowCarPartCondition.GetValue())
+						break;
+					VariantAndWearTracker vwt = gameObj.AddComponent<VariantAndWearTracker>();
+					vwt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Data").FsmVariables, trackerInfo);
+					bwt = vwt;
 					break;
 				default:
 					ModConsole.Error($"Part Inspector attempted to initialize with an invalid tracker type: {tt}");

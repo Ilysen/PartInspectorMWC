@@ -61,6 +61,7 @@
   <ItemGroup>
     <Compile Include="Scripts\PartInspectorMWC.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Scripts\Trackers\VariantAndWearTracker.cs" />
     <Compile Include="Scripts\Trackers\VariantTracker.cs" />
     <Compile Include="Scripts\Trackers\FullnessTracker.cs" />
     <Compile Include="Scripts\Trackers\OilFilterTracker.cs" />

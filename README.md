@@ -8,6 +8,11 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 
 ## Changelog
 
+### 29 January, 2026
+#### Version 0.1.4
+* Brake master cylinders now show both variant and wear, instead of just their variant. For now, it only shows data if both options are enabled.
+* Added an experimental feature to display the clearance of rocker valves while looking at them, for precisely tuning valve lash without requiring a save editor. **This is unfinished, untested, and may not even stick around;** support will not be provided, but it's still listed here for posterity.
+
 ### 26 January, 2026
 #### Version 0.1.3
 * Corrected variant names for bootlids.
