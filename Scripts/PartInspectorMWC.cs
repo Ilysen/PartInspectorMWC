@@ -16,7 +16,7 @@ namespace Ceres.PartInspectorMWC
 		public override string ID => "Ceres_PartInspectorMWC";
 		public override string Name => "Part Inspector";
 		public override string Author => "Ceres et al.";
-		public override string Version => "0.1.4";
+		public override string Version => "0.1.5";
 		public override string Description => "Inspect your stuff for integrity, condition, and dirtiness.";
 		public override Game SupportedGames => Game.MyWinterCar;
 		#endregion
@@ -205,6 +205,11 @@ namespace Ceres.PartInspectorMWC
 		// mmmmm yummy pasta
 		private readonly Dictionary<string, object> _partNames = new Dictionary<string, object>
 		{
+			// these are here because carbs track their wear using a DIFFERENT SCHEMA THAN EVERY OTHER PART WHYYY-
+			{ "Carburettor(VINXX)", TrackerType.Standard },
+			{ "2 Barrel Carb(VINXX)", TrackerType.Standard },
+			{ "4 Barrell Racing Carb(VINXX)", TrackerType.Standard },
+
 			{ "Engine Block(VINX0)", TrackerType.Simple },
 			{ "Oilpan(VINXX)", TrackerType.Simple },
 

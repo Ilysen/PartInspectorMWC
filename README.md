@@ -8,6 +8,10 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 
 ## Changelog
 
+### 6 May, 2026
+#### Version 0.1.5
+* Updated for compatibility with build 260504-01. Possible known issue: some newly-updated parts might not show their wear values if they're at maximum condition (i.e. zero wear). If you run into these, please report them!
+
 ### 29 January, 2026
 #### Version 0.1.4
 * Brake master cylinders now show both variant and wear, instead of just their variant. For now, it only shows data if both options are enabled.
