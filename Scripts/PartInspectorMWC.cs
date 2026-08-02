@@ -16,8 +16,8 @@ namespace Ceres.PartInspectorMWC
 		public override string ID => "Ceres_PartInspectorMWC";
 		public override string Name => "Part Inspector";
 		public override string Author => "Ceres et al.";
-		public override string Version => "0.1.5";
-		public override string Description => "Inspect your stuff for integrity, condition, and dirtiness.";
+		public override string Version => "0.1.6";
+		public override string Description => "Inspect your parts! (And containers and filters and bolts and…)";
 		public override Game SupportedGames => Game.MyWinterCar;
 		#endregion
 
@@ -38,6 +38,7 @@ namespace Ceres.PartInspectorMWC
 		internal static SettingsCheckBox SettingLogVerification;
 		internal static SettingsCheckBox SettingLogNewTrackers;
 		internal static SettingsCheckBox SettingLogBoltSize;
+
 		/// <summary>
 		/// Because a lot of <see cref="PrintToConsole(object, ConsoleMessageScope)"/> calls happen every frame,
 		/// we use these variables to cache the values of their respective settings, rather than getting the setting's value every time.<br/><br/>
@@ -215,7 +216,7 @@ namespace Ceres.PartInspectorMWC
 
 			{ "automatic transmission fluid(itemx)", new FullnessInfo("Data", MaxValue: 1f, DisplayAsFluid: true, ChildObjectName: "ATFOilTrigger" ) },
 			{ "brake fluid(itemx)", new FullnessInfo("Data", MaxValue: 1f, DisplayAsFluid: true, ChildObjectName: "BrakeFluidTrigger" ) },
-			{ "two stroke fuel(itemx)", new FullnessInfo("Data", MaxValue: 5f, DisplayAsFluid: true, ChildObjectName: "MotorOilTrigger" ) },
+			{ "two stroke fuel(itemx)", new FullnessInfo("Data", MaxValue: 5f, DisplayAsFluid: true, ChildObjectName: "TwoStrokeTrigger" ) },
 			{ "motor oil(itemx)", new FullnessInfo("Data", MaxValue: 4f, DisplayAsFluid: true, ChildObjectName: "MotorOilTrigger" ) },
 			{ "coolant(itemx)", new FullnessInfo("Data", MaxValue: 10f, DisplayAsFluid: true, ChildObjectName: "CoolantTrigger" ) },
 

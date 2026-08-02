@@ -8,6 +8,11 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 
 ## Changelog
 
+### 1 August, 2026
+#### Version 0.1.6
+* Fixed an issue where two-stroke fuel wouldn't have its fullness tracked correctly.
+* Rewrote the single-sentence mod description to hopefully have more \~\*Soul\*\~. This is accompanied by some very minor updates to the Nexus page too.
+
 ### 6 May, 2026
 #### Version 0.1.5
 * Updated for compatibility with build 260504-01. Possible known issue: some newly-updated parts might not show their wear values if they're at maximum condition (i.e. zero wear). If you run into these, please report them!
