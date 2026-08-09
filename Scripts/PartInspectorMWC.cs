@@ -75,9 +75,12 @@ namespace Ceres.PartInspectorMWC
 			Settings.AddText("For spark plugs, fuses, etc. Displays the amount left in the package.");
 			SettingShowObjectVariants = Settings.AddCheckBox(nameof(SettingShowObjectVariants), "Show object variants", true);
 			Settings.AddText("A part's variant will be shown in its display name. For things like instrument panels, grilles, and brake lines.");
-			SettingShowBoltSizes = Settings.AddCheckBox(nameof(SettingShowBoltSizes), "Show bolt sizes", false,
-				() => _showBoltSizes = SettingShowBoltSizes.GetValue());
-			Settings.AddText("When in tool mode, shows the size of whatever bolt you're looking at.");
+			if (ModLoader.CurrentGame == Game.MyWinterCar)
+			{
+				SettingShowBoltSizes = Settings.AddCheckBox(nameof(SettingShowBoltSizes), "Show bolt sizes", false,
+					() => _showBoltSizes = SettingShowBoltSizes.GetValue());
+				Settings.AddText("When in tool mode, shows the size of whatever bolt you're looking at.");
+			}
 
 			Settings.AddHeader("Interface", headingColor, Color.white);
 			Settings.AddText("Some of these settings won't do anything without specific trackers being enabled!");
@@ -106,11 +109,18 @@ namespace Ceres.PartInspectorMWC
 
 			Settings.AddHeader("Experimental", Color.red, Color.white, true);
 			Settings.AddText("<color=yellow>The following options are <b>experimental</b> and not intended for regular play. They may or may not work correctly. Use at your own risk - no support will be provided.</color>");
+			if (ModLoader.CurrentGame == Game.MySummerCar)
+			{
+				SettingShowBoltSizes = Settings.AddCheckBox(nameof(SettingShowBoltSizes), "Show bolt sizes", false,
+					() => _showBoltSizes = SettingShowBoltSizes.GetValue());
+				Settings.AddText("When in tool mode, shows the size of whatever bolt you're looking at.");
+			}
 			SettingShowValveClearance = Settings.AddCheckBox(nameof(SettingShowValveClearance), "Show valve lash", false,
 				() => _showValveClearance = SettingShowValveClearance.GetValue());
+			Settings.AddText("When tuning rocker valves, displays their clearance. Useful for setting specific values without requiring a save editor.");
 			SettingShowSuspensionTuning = Settings.AddCheckBox(nameof(SettingShowSuspensionTuning), "Show rally suspension tuning", false,
 				() => _showSuspensionTuning = SettingShowSuspensionTuning.GetValue());
-			Settings.AddText("When tuning rocker valves, displays their clearance. Useful for setting specific values without requiring a save editor.");
+			Settings.AddText("Shows the percentage of bump/rebound tuning on rally suspensions.");
 		}
 		#endregion
 
@@ -553,61 +563,93 @@ namespace Ceres.PartInspectorMWC
 				return;
 			if (!_toolMode.Value)
 				return;
-			PrintToConsole("Inspecting bolts...", ConsoleMessageScope.BoltInspection);
+			PrintToConsole("Inspecting bolts…", ConsoleMessageScope.BoltInspection);
+			if (!_curBolt.Value)
+			{
+				PrintToConsole("…Returning because there's no bolt.", ConsoleMessageScope.BoltInspection);
+				_lastBoltInspected = null;
+				if (_boltSizeText != string.Empty)
+					_boltSizeText = string.Empty;
+				return;
+			}
 			if (_curBolt.Value == _lastBoltInspected) // we're lookin at it -- show the text
 			{
-				PrintToConsole("...We're looking at the cached bolt. Going with that.", ConsoleMessageScope.BoltInspection);
+				PrintToConsole("…We're looking at the cached bolt. Going with that.", ConsoleMessageScope.BoltInspection);
 				if (_boltSizeText != string.Empty)
 					_displayGui.Value = _boltSizeText;
 				return;
 			}
 			_boltSizeText = string.Empty;
-			float toolSize = _curWrenchSize.Value;
-			if (toolSize == 0.65f)
+			// checking the object name is how the game differentiates between bolt size and like. wrench size
+			// so we get to do that too. god have mercy on my soul
+			if (IsMSC && _curBolt.Value.name != "BoltPM")
 			{
-				PrintToConsole("...Returning because we're holding a screwdriver.", ConsoleMessageScope.BoltInspection);
+				PrintToConsole("…We're looking at something that isn't a bolt. Exiting.", ConsoleMessageScope.BoltInspection);
 				return;
 			}
-			if (!_curBolt.Value)
-			{
-				PrintToConsole("...Returning because there's no bolt.", ConsoleMessageScope.BoltInspection);
-				_lastBoltInspected = null;
-				return;
-			}
-			PrintToConsole("-> Viewing data...", ConsoleMessageScope.BoltInspection);
+			PrintToConsole("-> Viewing data…", ConsoleMessageScope.BoltInspection);
 			var boltVals = _curBolt.Value.GetPlayMaker("Screw")?.FsmVariables;
-			float? boltSize = boltVals?.GetFsmFloat("Boltsize").Value;
+			float? boltSize = IsMSC ? _curBoltSizeMSC.Value : boltVals?.GetFsmFloat("Boltsize").Value;
 			if (boltSize == null)
 			{
-				PrintToConsole("...Bolt size is null. Returning.", ConsoleMessageScope.BoltInspection);
+				PrintToConsole("…Bolt size is null. Returning.", ConsoleMessageScope.BoltInspection);
 				return;
 			}
 			PrintToConsole($"-> Caching new bolt. Size: {boltSize}", ConsoleMessageScope.BoltInspection);
 			_lastBoltInspected = _curBolt.Value;
-			if (boltSize == 0.65f) // this is a screw, not a bolt!
-			{
-				PrintToConsole("...This is a screw, not a bolt. Returning.", ConsoleMessageScope.BoltInspection);
-				return;
-			}
 			string toDisplay = string.Empty;
+			float toolSize = _curWrenchSize.Value;
 			if (toolSize == boltSize)
 			{
-				if (_showValveClearance && boltSize == 1.2f)
+				// satsuma's valves tune with screws; rivett's tune with a size 12 nut
+				if (_showValveClearance &&
+					(IsMSC && boltSize == 0.65f) ||
+					!IsMSC && boltSize == 1.2f)
 				{
-					var valveDraft = boltVals.FindFsmFloat("AdjustmentF");
-					if (valveDraft != null)
+					var valveDraft = boltVals.FindFsmFloat(IsMSC ? "Alignment" : "AdjustmentF");
+					var valveName = boltVals.FindFsmString("Valve");
+					if (valveDraft != null && valveName != null)
 					{
-						toDisplay = $"Valve lash - {Math.Round(valveDraft.Value / 100, 4)} mm";
-						PrintToConsole("...We're looking at a valve. Displaying lash.", ConsoleMessageScope.BoltInspection);
+						bool isExhaust = valveName.Value.Contains("exhaust");
+						toDisplay = $"{(isExhaust ? "Exhaust" : "Intake")} valve lash - {Math.Round(valveDraft.Value / 100, 4)} mm";
+						PrintToConsole("…We're looking at a valve. Displaying lash.", ConsoleMessageScope.BoltInspection);
 						_lastBoltInspected = null; // since we're tuning in real-time, we need to constantly update this
 						goto calculateText;
 					}
 				}
-				PrintToConsole("...Tool size is correct. Returning", ConsoleMessageScope.BoltInspection);
+				if (_showSuspensionTuning &&
+					(IsMSC && boltSize == 0.65f && boltVals.FindFsmFloat("AdjustmentStep").Value == 100))
+				{
+					var alignment = boltVals.FindFsmFloat("Alignment").Value;
+					var max = boltVals.FindFsmFloat("Max").Value;
+					var min = boltVals.FindFsmFloat("Min").Value;
+					alignment -= min;
+					max -= min;
+					alignment = (float)Math.Round((alignment / max) * 100, 1);
+					bool isBump = boltVals.FindFsmGameObject("ThisBolt").Value.name.Contains("bump"); // i hate this too in fact
+					toDisplay = $"Suspension {(isBump ? "bump" : "rebound")} - {alignment}";
+					PrintToConsole($"…We're looking at rally suspension. Displaying {(isBump ? "bump" : "rebound")}.", ConsoleMessageScope.BoltInspection);
+					_lastBoltInspected = null;
+					goto calculateText;
+				}
+				PrintToConsole("…Tool size is correct. Returning", ConsoleMessageScope.BoltInspection);
 				return;
 			}
+			else
+			{
+				if (boltSize == 0.65f)
+				{
+					toDisplay = "Need screwdriver";
+					PrintToConsole("…This is a screw, not a bolt.", ConsoleMessageScope.BoltInspection);
+				}
+				else if (toolSize == 0.65f)
+				{
+					toDisplay = "Need wrench";
+					PrintToConsole("…This is a bolt/nut, not a screw.", ConsoleMessageScope.BoltInspection);
+				}
+			}
 		calculateText:
-			PrintToConsole("-> Calculating display text...", ConsoleMessageScope.BoltInspection);
+			PrintToConsole("-> Calculating display text…", ConsoleMessageScope.BoltInspection);
 			if (toDisplay == string.Empty)
 			{
 				switch (_boltSizeMode)
