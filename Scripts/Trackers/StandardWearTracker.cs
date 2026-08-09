@@ -9,10 +9,35 @@ namespace Ceres.PartInspectorMWC.Trackers
 	/// </summary>
 	internal class StandardWearTracker : BaseTracker
 	{
+		/// <summary>
+		/// The key used to fetch the wear value of this part.
+		/// </summary>
+		private string _wearKey;
+
+		/// <summary>
+		/// Used to track if this part is broken or not. My Summer Car separates these, so we gotta too.
+		/// </summary>
+		private FsmVariables _dbInfo;
+
+		internal override void Initialize(string initName, FsmVariables fsmVars, params object[] extraArgs)
+		{
+			base.Initialize(initName, fsmVars, extraArgs);
+			if (PartInspectorScript.IsMSC)
+			{
+				_wearKey = (string)extraArgs[0];
+				_dbInfo = (FsmVariables)extraArgs[1];
+			}
+		}
+
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{
-			DisplayText = $"{InitialName} - {GetDescriptor(FsmVariables.GetFsmFloat("Wear").Value)}";
+			float effectiveWear = FsmVariables.GetFsmFloat(_wearKey).Value;
+			// in MSC, broken parts track whether or not they're broken using a separate variable
+			// as a result, we have to override the usual wear value if they're busted
+			if (PartInspectorScript.IsMSC && _dbInfo.GetFsmBool("Damaged").Value)
+				effectiveWear = 0;
+			DisplayText = $"{InitialName} - {GetDescriptor(effectiveWear)}";
 		}
 
 		internal static string GetDescriptor(float WearVal)

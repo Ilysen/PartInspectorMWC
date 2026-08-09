@@ -76,7 +76,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <MSCMODSFOLDER>NONE</MSCMODSFOLDER>
+    <MSCMODSFOLDER>D:\Steam\steamapps\common\My Summer Car\Mods</MSCMODSFOLDER>
     <MWCMODSFOLDER>D:\Steam\steamapps\common\My Winter Car\Mods</MWCMODSFOLDER>
     <ABFOLDER>NONE</ABFOLDER>
     <PostBuildEvent>

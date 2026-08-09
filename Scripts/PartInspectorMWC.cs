@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using TanjentOGG;
 using UnityEngine;
 using static Ceres.PartInspectorMWC.Trackers.FullnessTracker;
 
@@ -13,12 +15,12 @@ namespace Ceres.PartInspectorMWC
 	public class PartInspectorScript : Mod
 	{
 		#region Metadata
-		public override string ID => "Ceres_PartInspectorMWC";
+		public override string ID => "Ceres_PartInspector";
 		public override string Name => "Part Inspector";
 		public override string Author => "Ceres et al.";
 		public override string Version => "0.1.6";
 		public override string Description => "Inspect your parts! (And containers and filters and bolts and…)";
-		public override Game SupportedGames => Game.MyWinterCar;
+		public override Game SupportedGames => Game.MySummerCar_And_MyWinterCar;
 		#endregion
 
 		#region Mod setup and settings
@@ -34,6 +36,7 @@ namespace Ceres.PartInspectorMWC
 		internal static SettingsCheckBox SettingShowObjectVariants;
 		internal static SettingsCheckBox SettingShowBoltSizes;
 		internal static SettingsCheckBox SettingShowValveClearance;
+		internal static SettingsCheckBox SettingShowSuspensionTuning;
 
 		internal static SettingsCheckBox SettingLogVerification;
 		internal static SettingsCheckBox SettingLogNewTrackers;
@@ -46,6 +49,11 @@ namespace Ceres.PartInspectorMWC
 		/// I figure that there's no harm in it, though!)
 		/// </summary>
 		internal static bool _logVerification, _logNewTrackers, _logBoltSize;
+
+		/// <summary>
+		/// This gets checked a lot, so we cache it in OnLoad() for performance
+		/// </summary>
+		public static bool IsMSC;
 
 		public override void ModSetup()
 		{
@@ -100,6 +108,8 @@ namespace Ceres.PartInspectorMWC
 			Settings.AddText("<color=yellow>The following options are <b>experimental</b> and not intended for regular play. They may or may not work correctly. Use at your own risk - no support will be provided.</color>");
 			SettingShowValveClearance = Settings.AddCheckBox(nameof(SettingShowValveClearance), "Show valve lash", false,
 				() => _showValveClearance = SettingShowValveClearance.GetValue());
+			SettingShowSuspensionTuning = Settings.AddCheckBox(nameof(SettingShowSuspensionTuning), "Show rally suspension tuning", false,
+				() => _showSuspensionTuning = SettingShowSuspensionTuning.GetValue());
 			Settings.AddText("When tuning rocker valves, displays their clearance. Useful for setting specific values without requiring a save editor.");
 		}
 		#endregion
@@ -124,7 +134,7 @@ namespace Ceres.PartInspectorMWC
 		/// </summary>
 		private int _boltSizeMode = 3;
 
-		private bool _showValveClearance;
+		private bool _showValveClearance, _showSuspensionTuning;
 
 		/// <summary>
 		/// Cached reference to the bolt we're showing the size of.
@@ -158,6 +168,21 @@ namespace Ceres.PartInspectorMWC
 		/// Cached reference to whatever bolt the player is looking at.
 		/// </summary>
 		private FsmGameObject _curBolt;
+
+		/// <summary>
+		/// MSC-exclusive. The cleanest way to track bolt size is to view this variable, which is attached to the wrench itself.
+		/// </summary>
+		private FsmFloat _curBoltSizeMSC;
+		
+		/// <summary>
+		/// Only needed for MSC, which tracks all of its part wear data as an FSM attached to the Satsuma itself.
+		/// </summary>
+		private FsmVariables _mscSatsumaVars;
+
+		/// <summary>
+		/// Only needed for MSC, which tracks part installation with these lists.
+		/// </summary>
+		private List<PlayMakerFSM> _mscMotorDb;
 		#endregion
 
 		#region Internal vars
@@ -206,6 +231,45 @@ namespace Ceres.PartInspectorMWC
 		// mmmmm yummy pasta
 		private readonly Dictionary<string, object> _partNames = new Dictionary<string, object>
 		{
+			{ "brake fluid(itemx)", new FullnessInfo("Data", MaxValue: 1f, DisplayAsFluid: true, ChildObjectName: "BrakeFluidTrigger" ) },
+			{ "two stroke fuel(itemx)", new FullnessInfo("Data", MaxValue: 5f, DisplayAsFluid: true, ChildObjectName: "TwoStrokeTrigger" ) },
+			{ "motor oil(itemx)", new FullnessInfo("Data", MaxValue: 4f, DisplayAsFluid: true, ChildObjectName: "MotorOilTrigger" ) },
+			{ "coolant(itemx)", new FullnessInfo("Data", MaxValue: 10f, DisplayAsFluid: true, ChildObjectName: "CoolantTrigger" ) },
+
+			{ "spray can(itemx)", new FullnessInfo(MaxValue: 100f ) },
+			{ "mosquito spray(itemx)", new FullnessInfo(MaxValue: 100f ) },
+
+
+			{ "ground coffee(itemx)", new FullnessInfo(ValueKey: "Ground", MaxValue: 100f, MinValue: 1 ) },
+			{ "grill charcoal(itemx)", new FullnessInfo(ValueKey: "Contents", MaxValue: 140f, MinValue: 1 ) },
+
+			{ "spark plug box(Clone)", TrackerType.Quantity },
+			{ "r20 battery box(Clone)", TrackerType.Quantity },
+			{ "fuse package(Clone)", TrackerType.Quantity },
+
+			#region Parts specific to MSC
+			{ "fire extinguisher(itemx)", new FullnessInfo("Use", MaxValue: 100f ) },
+			{ "Oil filter(Clone)", TrackerType.OilFilter },
+
+			{ "alternator(Clone)", "Alternator" },
+			{ "clutch disc(Clone)", "Clutch" },
+			{ "crankshaft(Clone)", "Crankshaft" },
+			{ "fuel pump(Clone)", "Fuelpump" },
+			{ "gearbox(Clone)", "Gearbox" },
+			{ "head gasket(Clone)", "Headgasket" },
+			{ "piston1(Clone)", "Piston1" },
+			{ "piston2(Clone)", "Piston2" },
+			{ "piston3(Clone)", "Piston3" },
+			{ "piston4(Clone)", "Piston4" },
+			{ "rocker shaft(Clone)", "Rockershaft" },
+			{ "starter(Clone)", "Starter" },
+			{ "water pump(Clone)", "Waterpump" },
+			#endregion
+			
+			#region Parts specific to MWC
+			{ "automatic transmission fluid(itemx)", new FullnessInfo("Data", MaxValue: 1f, DisplayAsFluid: true, ChildObjectName: "ATFOilTrigger" ) },
+			{ "package(Clone)", TrackerType.Quantity }, // for parts purchased from fleetari. not the most descriptive name in the world, huh?
+
 			// these are here because carbs track their wear using a DIFFERENT SCHEMA THAN EVERY OTHER PART WHYYY-
 			{ "Carburettor(VINXX)", TrackerType.Standard },
 			{ "2 Barrel Carb(VINXX)", TrackerType.Standard },
@@ -214,23 +278,8 @@ namespace Ceres.PartInspectorMWC
 			{ "Engine Block(VINX0)", TrackerType.Simple },
 			{ "Oilpan(VINXX)", TrackerType.Simple },
 
-			{ "automatic transmission fluid(itemx)", new FullnessInfo("Data", MaxValue: 1f, DisplayAsFluid: true, ChildObjectName: "ATFOilTrigger" ) },
-			{ "brake fluid(itemx)", new FullnessInfo("Data", MaxValue: 1f, DisplayAsFluid: true, ChildObjectName: "BrakeFluidTrigger" ) },
-			{ "two stroke fuel(itemx)", new FullnessInfo("Data", MaxValue: 5f, DisplayAsFluid: true, ChildObjectName: "TwoStrokeTrigger" ) },
-			{ "motor oil(itemx)", new FullnessInfo("Data", MaxValue: 4f, DisplayAsFluid: true, ChildObjectName: "MotorOilTrigger" ) },
-			{ "coolant(itemx)", new FullnessInfo("Data", MaxValue: 10f, DisplayAsFluid: true, ChildObjectName: "CoolantTrigger" ) },
-
-			{ "Oil filter(VINXX)", TrackerType.OilFilter },
-			{ "spray can(itemx)", new FullnessInfo(MaxValue: 100f ) },
-			{ "mosquito spray(itemx)", new FullnessInfo(MaxValue: 100f ) },
 			{ "Fire Extinguisher(VINXX)", new FullnessInfo("Data", MaxValue: 100f ) },
-			{ "ground coffee(itemx)", new FullnessInfo(ValueKey: "Ground", MaxValue: 100f, MinValue: 1 ) },
-			{ "grill charcoal(itemx)", new FullnessInfo(ValueKey: "Contents", MaxValue: 140f, MinValue: 1 ) },
-
-			{ "spark plug box(Clone)", TrackerType.Quantity },
-			{ "r20 battery box(Clone)", TrackerType.Quantity },
-			{ "fuse package(Clone)", TrackerType.Quantity },
-			{ "package(Clone)", TrackerType.Quantity }, // for parts purchased from fleetari. not the most descriptive name in the world, huh?
+			{ "Oil filter(VINXX)", TrackerType.OilFilter },
 
 			{ "Brake Lines(VINXX)", new VariantInfo( new Dictionary<object, string>{
 				{ 1, "Standard Brakes" }, { 2, "Power Brakes" }
@@ -265,7 +314,8 @@ namespace Ceres.PartInspectorMWC
 				{ "A", "Pre-Facelift" },
 				{ "B", "Facelift" },
 				{ "GT", "GT" },
-			}, typeof(string), "Code" ) }
+			}, typeof(string), "Code" ) },
+			#endregion
 		};
 
 		/// <summary>
@@ -318,28 +368,46 @@ namespace Ceres.PartInspectorMWC
 			{
 				Stopwatch stopwatch = new Stopwatch();
 				stopwatch.Start();
-				PrintToConsole($"{Name} version {Version} is attempting to initialize", ConsoleMessageScope.Core);
+				IsMSC = ModLoader.CurrentGame == Game.MySummerCar;
+				PrintToConsole($"{Name} version {Version} is attempting to initialize for My {( IsMSC ? "Summer" : "Winter" )} car…", ConsoleMessageScope.Core);
 
-				PrintToConsole("Caching objects and variables...", ConsoleMessageScope.Core);
+				PrintToConsole("Caching global objects and variables…", ConsoleMessageScope.Core);
 				FsmVariables plyCam = GameObject.Find("PLAYER/Pivot/AnimPivot/Camera/FPSCamera/1Hand_Assemble/Hand").GetPlayMaker("PickUp").FsmVariables;
 				_plyCamObject = plyCam.GetFsmGameObject("RaycastHitObject");
-
 				_toolMode = PlayMakerGlobals.Instance.Variables.FindFsmBool("PlayerHandRight");
 				_interactionGui = PlayMakerGlobals.Instance.Variables.FindFsmString("GUIinteraction");
 				_pickedPartGui = PlayMakerGlobals.Instance.Variables.FindFsmString("PickedPart");
-				_boltSizeMode = SettingBoltSizePrecision.GetSelectedItemIndex();
 				GameObject wrenchRaycast = GameObject.Find("PLAYER/Pivot/AnimPivot/Camera/FPSCamera/2Spanner/Raycast");
 				_curWrenchSize = PlayMakerGlobals.Instance.Variables.FindFsmFloat("ToolWrenchSize");
 				_curBolt = wrenchRaycast.GetPlayMaker("Raycast").FsmVariables.GetFsmGameObject("Bolt");
+
+				if (IsMSC)
+				{
+					_curBoltSizeMSC = wrenchRaycast.GetPlayMaker("Check").FsmVariables.GetFsmFloat("BoltSize");
+					PrintToConsole("Fetching Satsuma part data…", ConsoleMessageScope.Core);
+					_mscSatsumaVars = PlayMakerExtensions.GetPlayMaker(GameObject.
+						Find("SATSUMA(557kg, 248)").transform.
+						Find("CarSimulation/MechanicalWear").gameObject, "Data").FsmVariables;
+					_mscMotorDb = new List<PlayMakerFSM>();
+					foreach (PlayMakerFSM fsm in GameObject.Find("Database/DatabaseMotor").GetComponentsInChildren<PlayMakerFSM>())
+					{
+						PrintToConsole($"-> Adding fsm to database: {fsm.gameObject.name}", ConsoleMessageScope.Core);
+						_mscMotorDb.Add(fsm);
+					}
+				}
+
+				PrintToConsole("Loading settings…", ConsoleMessageScope.Core);
+				_boltSizeMode = SettingBoltSizePrecision.GetSelectedItemIndex();
 				_showBoltSizes = SettingShowBoltSizes.GetValue();
 				_showValveClearance = SettingShowValveClearance.GetValue();
+				_showSuspensionTuning = SettingShowSuspensionTuning.GetValue();
 				_logNewTrackers = SettingLogNewTrackers.GetValue();
 				_logVerification = SettingLogVerification.GetValue();
 				_logBoltSize = SettingLogBoltSize.GetValue();
 
-				PrintToConsole("Setting up display UI...", ConsoleMessageScope.Core);
+				PrintToConsole("Setting up display UI…", ConsoleMessageScope.Core);
 				RefreshDisplayGUI();
-				PrintToConsole("Finalizing setup...", ConsoleMessageScope.Core);
+				PrintToConsole("Finalizing setup…", ConsoleMessageScope.Core);
 				_allTrackers = new Dictionary<GameObject, BaseTracker>();
 				RebuildDisplays();
 
@@ -385,7 +453,7 @@ namespace Ceres.PartInspectorMWC
 				}
 				foreach (var obj in toRemove)
 				{
-					PrintToConsole("Removing null tracker...", ConsoleMessageScope.NewTrackers);
+					PrintToConsole("Removing null tracker…", ConsoleMessageScope.NewTrackers);
 					_allTrackers.Remove(obj);
 				}
 			}
@@ -415,38 +483,44 @@ namespace Ceres.PartInspectorMWC
 					return;
 				}
 
-				// first, check for an FSM named Data, and then check for a field named Wear
-				PlayMakerFSM dataFsm = PlayMakerExtensions.GetPlayMaker(lookedObj, "Data");
-				bool checkForName = false;
-				if (dataFsm == null)
+				// first: set whether or not we will need to view the part name list
+				// MWC conveniently generalizes this across all of its parts; MSC, however, does not
+				// as a result, for MSC we *always* check part name, but for MWC we skip it if we can find the relevant data
+				bool tryPartLookup = true;
+				
+				if (!IsMSC)
 				{
-					PrintToConsole("-> DOES NOT have Data fsm. Checking name.", ConsoleMessageScope.Verification);
-					checkForName = true;
-				}
-				else
-				{
-					PrintToConsole("-> DOES have Data fsm. Verifying if Wear is present...", ConsoleMessageScope.Verification);
-					FsmFloat wearVal = PlayMakerExtensions.GetVariable<FsmFloat>(dataFsm, "Wear");
-					FsmFloat minWearVal = PlayMakerExtensions.GetVariable<FsmFloat>(dataFsm, "WearMin");
-					if (wearVal == null || (wearVal.Value == 99 && minWearVal == null))
+					PlayMakerFSM dataFsm = PlayMakerExtensions.GetPlayMaker(lookedObj, "Data");
+					if (dataFsm == null)
 					{
-						PrintToConsole("--> Wear variable is not present or is 99 exactly. Checking name instead.", ConsoleMessageScope.Verification);
-						checkForName = true;
+						PrintToConsole("-> DOES NOT have Data fsm. Checking name.", ConsoleMessageScope.Verification);
+						tryPartLookup = true;
 					}
 					else
 					{
-						PrintToConsole($"--> Wear is present! Value: {wearVal.Value}", ConsoleMessageScope.Verification);
+						PrintToConsole("-> DOES have Data fsm. Verifying if Wear is present…", ConsoleMessageScope.Verification);
+						FsmFloat wearVal = PlayMakerExtensions.GetVariable<FsmFloat>(dataFsm, "Wear");
+						FsmFloat minWearVal = PlayMakerExtensions.GetVariable<FsmFloat>(dataFsm, "WearMin");
+						if (wearVal == null || (wearVal.Value == 99 && minWearVal == null))
+						{
+							PrintToConsole("--> Wear variable is not present or is 99 exactly. Checking name instead.", ConsoleMessageScope.Verification);
+							tryPartLookup = true;
+						}
+						else
+						{
+							PrintToConsole($"--> Wear is present! Value: {wearVal.Value}", ConsoleMessageScope.Verification);
+						}
 					}
 				}
 
-				// if neither of those are present, then check to see if the object's name is in the list
+				// second: look up the object's name in the part name list
 				// if it's not, this isn't something with a tracker -- back out
-				if (checkForName)
+				if (tryPartLookup)
 				{
 					PrintToConsole("-> Now checking for name in _partNames.", ConsoleMessageScope.Verification);
 					if (!_partNames.Keys.Contains(lookedObj.name))
 					{
-						PrintToConsole("--> Part name is not present. Doing a final check on the parent object...", ConsoleMessageScope.Verification);
+						PrintToConsole("--> Part name is not present. Doing a final check on the parent object…", ConsoleMessageScope.Verification);
 						if (!lookedObj.transform.parent?.gameObject || !_partNames.Keys.Contains(lookedObj.transform.parent.gameObject.name))
 						{
 							PrintToConsole("--> No trackable parent object. Returning.", ConsoleMessageScope.Verification);
@@ -596,7 +670,25 @@ namespace Ceres.PartInspectorMWC
 				case TrackerType.Standard:
 					if (!SettingShowCarPartCondition.GetValue())
 						break;
-					newTrackerType = typeof(StandardWearTracker);
+					if (!IsMSC)
+						newTrackerType = typeof(StandardWearTracker);
+					else
+					{
+						StandardWearTracker swt = gameObj.AddComponent<StandardWearTracker>();
+						FsmVariables dbInfo = null;
+						foreach (PlayMakerFSM fsm in _mscMotorDb)
+						{
+							var vars = fsm.FsmVariables;
+							if (vars.GetFsmString("UniqueTag").Value == gameObj.name)
+							{
+								dbInfo = vars;
+								break;
+							}
+						}
+						swt.Initialize(gameObj.name, _mscSatsumaVars, "Wear" + _partNames[gameObj.name], dbInfo);
+						bwt = swt;
+						break;
+					}
 					break;
 				case TrackerType.Simple:
 					if (!SettingShowCarPartCondition.GetValue())
@@ -608,12 +700,16 @@ namespace Ceres.PartInspectorMWC
 					if (!SettingShowCarPartCondition.GetValue())
 						break;
 					newTrackerType = typeof(OilFilterTracker);
+					OilFilterTracker oft = gameObj.AddComponent<OilFilterTracker>();
+					// oil filters have slightly different variable names between games, but are otherwise identical
+					oft.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, IsMSC ? "Use" : "Data").FsmVariables);
+					bwt = oft;
 					break;
 				case TrackerType.Fullness:
 					FullnessInfo fi = (FullnessInfo)trackerInfo;
 					if (!SettingShowContainerFullness.GetValue())
 						break;
-					PrintToConsole("Creating fullness tracker...", ConsoleMessageScope.NewTrackers);
+					PrintToConsole("Creating fullness tracker…", ConsoleMessageScope.NewTrackers);
 					GameObject objToRead = gameObj;
 					if (fi.ChildObjectName != null)
 					{
@@ -639,7 +735,7 @@ namespace Ceres.PartInspectorMWC
 				case TrackerType.Quantity:
 					if (!SettingShowPackageQuantity.GetValue())
 						break;
-					QuantityTracker qt = gameObj.AddComponent<QuantityTracker>(); // qt uwu
+					QuantityTracker qt = gameObj.AddComponent<QuantityTracker>(); // qt uwu  // 2026 update: forgot I wrote this. fantastic bit, past me
 					qt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Use").FsmVariables);
 					bwt = qt;
 					break;
