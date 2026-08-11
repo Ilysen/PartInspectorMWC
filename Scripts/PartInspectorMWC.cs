@@ -259,7 +259,7 @@ namespace Ceres.PartInspectorMWC
 
 			#region Parts specific to MSC
 			{ "fire extinguisher(itemx)", new FullnessInfo("Use", MaxValue: 100f ) },
-			{ "Oil filter(Clone)", TrackerType.OilFilter },
+			{ "oil filter(Clone)", TrackerType.OilFilter },
 
 			{ "alternator(Clone)", "Alternator" },
 			{ "clutch disc(Clone)", "Clutch" },
@@ -543,7 +543,7 @@ namespace Ceres.PartInspectorMWC
 								PrintToConsole("--> Parent object was found but already tracked. Returning.", ConsoleMessageScope.Verification);
 								return;
 							}
-							PrintToConsole("--> Parent object is trackable! We are valid!", ConsoleMessageScope.Verification);
+							PrintToConsole($"--> Parent object {lookedObj.transform.parent.gameObject.name} is trackable! We are valid!", ConsoleMessageScope.Verification);
 						}
 					}
 				}
@@ -559,7 +559,7 @@ namespace Ceres.PartInspectorMWC
 		/// </summary>
 		private void UpdateBolts()
 		{
-			if (!_showBoltSizes)
+			if (!_showBoltSizes && !_showValveClearance && !_showSuspensionTuning)
 				return;
 			if (!_toolMode.Value)
 				return;
@@ -625,9 +625,9 @@ namespace Ceres.PartInspectorMWC
 					var min = boltVals.FindFsmFloat("Min").Value;
 					alignment -= min;
 					max -= min;
-					alignment = (float)Math.Round((alignment / max) * 100, 1);
+					alignment = (float)Math.Round((alignment / max) * 100);
 					bool isBump = boltVals.FindFsmGameObject("ThisBolt").Value.name.Contains("bump"); // i hate this too in fact
-					toDisplay = $"Suspension {(isBump ? "bump" : "rebound")} - {alignment}";
+					toDisplay = $"Suspension {(isBump ? "bump" : "rebound")} - {alignment}%";
 					PrintToConsole($"…We're looking at rally suspension. Displaying {(isBump ? "bump" : "rebound")}.", ConsoleMessageScope.BoltInspection);
 					_lastBoltInspected = null;
 					goto calculateText;
@@ -635,7 +635,7 @@ namespace Ceres.PartInspectorMWC
 				PrintToConsole("…Tool size is correct. Returning", ConsoleMessageScope.BoltInspection);
 				return;
 			}
-			else
+			else if (_showBoltSizes)
 			{
 				if (boltSize == 0.65f)
 				{
@@ -650,7 +650,7 @@ namespace Ceres.PartInspectorMWC
 			}
 		calculateText:
 			PrintToConsole("-> Calculating display text…", ConsoleMessageScope.BoltInspection);
-			if (toDisplay == string.Empty)
+			if (toDisplay == string.Empty && _showBoltSizes)
 			{
 				switch (_boltSizeMode)
 				{
@@ -706,6 +706,7 @@ namespace Ceres.PartInspectorMWC
 				tt = !vi.AlsoTracksWear ? TrackerType.Variant : TrackerType.VariantAndWear;
 			BaseTracker bwt = null;
 			Type newTrackerType = null;
+			string parentFsmName = "Data";
 			PrintToConsole($"Creating tracker on game object {gameObj} with type: {tt}", ConsoleMessageScope.NewTrackers);
 			switch (tt)
 			{
@@ -741,7 +742,6 @@ namespace Ceres.PartInspectorMWC
 					// realistically I can't imagine a case of someone wanting to know car parts but *not* oil filters, so
 					if (!SettingShowCarPartCondition.GetValue())
 						break;
-					newTrackerType = typeof(OilFilterTracker);
 					OilFilterTracker oft = gameObj.AddComponent<OilFilterTracker>();
 					// oil filters have slightly different variable names between games, but are otherwise identical
 					oft.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, IsMSC ? "Use" : "Data").FsmVariables);
