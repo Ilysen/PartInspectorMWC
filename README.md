@@ -1,8 +1,6 @@
-# Part Inspector (MWC Version)
+# Part Inspector
 
-**Note:** This is the MWC version of Part Inspector. Due to heavy code divergences, the two weren't mutually compatible. The MSC version can be found here: https://github.com/Ilysen/PartInspector
-
-This is a mod for My Winter Car that lets you look at car parts to see how damaged they are, among other things. For more info, take a look at the [Nexus page](https://www.nexusmods.com/mysummercar/mods/2291).
+This is a mod for My Summer Car and My Winter Car that lets you look at car parts to see how damaged they are, among other things. For more info, take a look at the [Nexus page](https://www.nexusmods.com/mysummercar/mods/2291).
 
 Part Inspector is licensed under the [GNU General Public License v3](http://www.gnu.org/licenses/agpl.html), which can be found in full in [LICENSE.md](LICENSE.md).
 
@@ -13,6 +11,7 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 * Unified the MSC and MWC versions of the mod. The same file should now work on both games, and adjust accordingly to match!
 	* If you're playing MWC, then there won't be many differences here. If you're playing MSC, however, there are a lot of changes and new features, so make sure you go through your settings thoroughly.
 * Added a new tracker type, disabled by default, that shows the current freshness of food that can spoil.
+* When the mod fails to set up a new tracker, it will try to handle the failure more gracefully and stop trying to add trackers to that object instead of repeatedly failing until the mod disables itself due to error spam. This should allow you to continue playing even if you run into issues, though mileage may vary.
 
 ### 1 August, 2026
 #### Version 0.1.6

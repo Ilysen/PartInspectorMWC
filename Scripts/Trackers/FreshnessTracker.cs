@@ -25,7 +25,7 @@ namespace Ceres.PartInspector.Trackers
 		{
 			base.Initialize(initName, fsmVars, extraArgs);
 			FreshnessInfo fi = (FreshnessInfo)extraArgs[0];
-			_maxFreshness = fi.MaxFreshness - 1; // items spoil at 1 condition, not 0
+			_maxFreshness = fi.MaxFreshness;
 			_curFreshness = fsmVars.GetFsmFloat("Condition");
 		}
 
@@ -33,12 +33,12 @@ namespace Ceres.PartInspector.Trackers
 		internal override void BuildDisplayText()
 		{
 			string newText = null;
-			float freshnessPercent = GetWearPercentage();
-			if (freshnessPercent <= 0) // spoiled -- skip
+			if (_curFreshness.Value <= 1) // spoiled -- skip
 			{
-				DisplayText = null;
+				DisplayText = string.Empty;
 				return;
 			}
+			float freshnessPercent = GetWearPercentage();
 			switch (PartInspectorScript.SettingDisplayPrecision.GetSelectedItemIndex())
 			{
 				case 1: // General description

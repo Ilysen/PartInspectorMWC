@@ -133,7 +133,7 @@ namespace Ceres.PartInspector
 			Settings.AddText("When tuning rocker valves, displays their clearance. Useful for setting specific values without requiring a save editor.");
 			SettingShowSuspensionTuning = Settings.AddCheckBox(nameof(SettingShowSuspensionTuning), "Show rally suspension tuning", false,
 				() => _showSuspensionTuning = SettingShowSuspensionTuning.GetValue());
-			Settings.AddText("Shows the percentage of bump/rebound tuning on rally suspensions.");
+			Settings.AddText("Shows the percentage of bump/rebound tuning on rally suspensions. (You can already see the position of the knob for these; this just makes it quick and easy, instead of having to measure the amount of ticks from max you are.)");
 		}
 		#endregion
 
@@ -388,6 +388,12 @@ namespace Ceres.PartInspector
 		private Dictionary<GameObject, BaseTracker> _allTrackers;
 
 		/// <summary>
+		/// Objects in this list can never have a tracker added, no matter what.
+		/// In normal conditions, objects only enter this list if they throw an error while having a tracker added to them!
+		/// </summary>
+		private HashSet<GameObject> _blacklistedObjects;
+
+		/// <summary>
 		/// The text GUI used to display the part's condition. This will always point to either <see cref="_pickedPartGui"/> or <see cref="_interactionGui"/>,
 		/// depending on the value of <see cref="SettingDisplayLocation"/>.
 		/// </summary>
@@ -475,6 +481,7 @@ namespace Ceres.PartInspector
 				RefreshDisplayGUI();
 				PrintToConsole("Finalizing setup…", ConsoleMessageScope.Core);
 				_allTrackers = new Dictionary<GameObject, BaseTracker>();
+				_blacklistedObjects = new HashSet<GameObject>();
 				RebuildDisplays();
 
 				stopwatch.Stop();
@@ -540,6 +547,11 @@ namespace Ceres.PartInspector
 			if (lookedObj != null)
 			{
 				PrintToConsole($"Checking if valid object: {lookedObj.name}", ConsoleMessageScope.Verification);
+				if (_blacklistedObjects.Contains(lookedObj)) 
+				{
+					PrintToConsole("-> Object is blacklisted. Returning.", ConsoleMessageScope.Verification);
+					return;
+				}
 				if (_allTrackers.Keys.Contains(lookedObj))
 				{
 					PrintToConsole("-> Object already has a tracker. Returning.", ConsoleMessageScope.Verification);
@@ -757,145 +769,154 @@ namespace Ceres.PartInspector
 		/// (which falls back to <see cref="TrackerType.PartCondition"/>).</param>
 		private void CreateTrackerForPart(GameObject gameObj, object trackerInfo = null)
 		{
-			TrackerType tt = TrackerType.PartCondition;
-			if (trackerInfo is TrackerType t)
-				tt = t;
-			else if (trackerInfo is FullnessInfo)
-				tt = TrackerType.Fullness;
-			else if (trackerInfo is VariantInfo vi)
-				tt = !vi.AlsoTracksWear ? TrackerType.MWC_Variant : TrackerType.MWC_VariantAndWear;
-			else if (trackerInfo is FreshnessInfo)
-				tt = TrackerType.Freshness;
-			BaseTracker bwt = null;
-			Type newTrackerType = null;
-			PrintToConsole($"Creating tracker on game object {gameObj} with type: {tt}", ConsoleMessageScope.NewTrackers);
-			switch (tt)
+			try
 			{
-				case TrackerType.PartCondition:
-					if (!SettingShowCarPartCondition.GetValue())
-						break;
-					if (!IsMSC) // MWC follows a standardized format for its parts that wear down -- just entrust the setup to the tracker itsef
-						newTrackerType = typeof(PartConditionTracker);
-					else // MSC, however, has a whole bunch of finagling that needs to be done, so we do the heavy lifting here
-					{
-						PartConditionTracker swt = gameObj.AddComponent<PartConditionTracker>();
-						FsmVariables dbInfo = null;
-						foreach (PlayMakerFSM fsm in _mscMotorDb)
+				TrackerType tt = TrackerType.PartCondition;
+				if (trackerInfo is TrackerType t)
+					tt = t;
+				else if (trackerInfo is FullnessInfo)
+					tt = TrackerType.Fullness;
+				else if (trackerInfo is VariantInfo vi)
+					tt = !vi.AlsoTracksWear ? TrackerType.MWC_Variant : TrackerType.MWC_VariantAndWear;
+				else if (trackerInfo is FreshnessInfo)
+					tt = TrackerType.Freshness;
+				BaseTracker bwt = null;
+				Type newTrackerType = null;
+				PrintToConsole($"Creating tracker on game object {gameObj} with type: {tt}", ConsoleMessageScope.NewTrackers);
+				switch (tt)
+				{
+					case TrackerType.PartCondition:
+						if (!SettingShowCarPartCondition.GetValue())
+							break;
+						if (!IsMSC) // MWC follows a standardized format for its parts that wear down -- just entrust the setup to the tracker itsef
+							newTrackerType = typeof(PartConditionTracker);
+						else // MSC, however, has a whole bunch of finagling that needs to be done, so we do the heavy lifting here
 						{
-							var vars = fsm.FsmVariables;
-							if (vars.GetFsmString("UniqueTag").Value == gameObj.name)
+							PartConditionTracker swt = gameObj.AddComponent<PartConditionTracker>();
+							FsmVariables dbInfo = null;
+							foreach (PlayMakerFSM fsm in _mscMotorDb)
 							{
-								dbInfo = vars;
-								break;
+								var vars = fsm.FsmVariables;
+								if (vars.GetFsmString("UniqueTag").Value == gameObj.name)
+								{
+									dbInfo = vars;
+									break;
+								}
 							}
-						}
-						swt.Initialize(gameObj.name, _mscSatsumaVars, "Wear" + _partNames[gameObj.name], dbInfo);
-						bwt = swt;
-						break;
-					}
-					break;
-
-				case TrackerType.IntactOrBroken:
-					if (!SettingShowCarPartCondition.GetValue())
-						break;
-					newTrackerType = typeof(IntactOrBrokenTracker);
-					break;
-				case TrackerType.OilFilter:
-					// realistically I can't imagine a case of someone wanting to know car parts but *not* oil filters, so
-					if (!SettingShowCarPartCondition.GetValue())
-						break;
-					OilFilterTracker oft = gameObj.AddComponent<OilFilterTracker>();
-					// oil filters have slightly different variable names between games, but are otherwise identical
-					oft.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, IsMSC ? "Use" : "Data").FsmVariables);
-					bwt = oft;
-					break;
-				case TrackerType.Fullness:
-					if (!SettingShowContainerFullness.GetValue())
-						break;
-					FullnessInfo fi = (FullnessInfo)trackerInfo;
-					PrintToConsole("Creating fullness tracker…", ConsoleMessageScope.NewTrackers);
-					GameObject objToRead = gameObj;
-					if (!IsMSC && fi.ChildObjectName != null)
-					{
-						PrintToConsole($"-> Finding child object with name: {fi.ChildObjectName}", ConsoleMessageScope.NewTrackers);
-						// this is necessary due to the way MWC handles the data on its fluid objects;
-						// the fullness value on the base object itself is generally not accurate, and instead
-						// the trigger object (of which the base object is a parent) holds the most up-to-date data
-						objToRead = objToRead.transform.Find(fi.ChildObjectName)?.gameObject;
-						if (objToRead == null)
-						{
-							PrintToConsole("-> Child object not found. Breaking.", ConsoleMessageScope.NewTrackers);
+							swt.Initialize(gameObj.name, _mscSatsumaVars, "Wear" + _partNames[gameObj.name], dbInfo);
+							bwt = swt;
 							break;
 						}
-						else
-							PrintToConsole("-> Child object found. We'll reference its playmaker.", ConsoleMessageScope.NewTrackers);
-					}
-					PrintToConsole($"-> Final object to read FSM from: {objToRead}.", ConsoleMessageScope.NewTrackers);
-					FullnessTracker ft = gameObj.AddComponent<FullnessTracker>();
-					ft.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(objToRead, fi.FsmName).FsmVariables, fi);
-					bwt = ft;
-					PrintToConsole($"Fullness tracker initialized.", ConsoleMessageScope.NewTrackers);
-					break;
-				case TrackerType.Quantity:
-					if (!SettingShowPackageQuantity.GetValue())
 						break;
-					QuantityTracker qt = gameObj.AddComponent<QuantityTracker>(); // qt uwu  // 2026 update: forgot I wrote this. fantastic bit, past me
-					qt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Use").FsmVariables);
-					bwt = qt;
-					break;
-				case TrackerType.Freshness:
-					if (!SettingShowFoodFreshness.GetValue())
-						break;
-					FreshnessInfo fri = (FreshnessInfo)trackerInfo;
-					FreshnessTracker frt = gameObj.AddComponent<FreshnessTracker>();
-					frt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Use").FsmVariables, fri);
-					bwt = frt;
-					break;
 
-				#region MSC-exclusive trackers
-				case TrackerType.MSC_SparkPlug:
-					if (!SettingShowCarPartCondition.GetValue())
+					case TrackerType.IntactOrBroken:
+						if (!SettingShowCarPartCondition.GetValue())
+							break;
+						newTrackerType = typeof(IntactOrBrokenTracker);
 						break;
-					MSC_SparkPlugTracker spt = gameObj.AddComponent<MSC_SparkPlugTracker>();
-					spt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Use").FsmVariables);
-					bwt = spt;
-					break;
-				#endregion
+					case TrackerType.OilFilter:
+						// realistically I can't imagine a case of someone wanting to know car parts but *not* oil filters, so
+						if (!SettingShowCarPartCondition.GetValue())
+							break;
+						OilFilterTracker oft = gameObj.AddComponent<OilFilterTracker>();
+						// oil filters have slightly different variable names between games, but are otherwise identical
+						oft.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, IsMSC ? "Use" : "Data").FsmVariables);
+						bwt = oft;
+						break;
+					case TrackerType.Fullness:
+						if (!SettingShowContainerFullness.GetValue())
+							break;
+						FullnessInfo fi = (FullnessInfo)trackerInfo;
+						PrintToConsole("Creating fullness tracker…", ConsoleMessageScope.NewTrackers);
+						GameObject objToRead = gameObj;
+						if (!IsMSC && fi.ChildObjectName != null)
+						{
+							PrintToConsole($"-> Finding child object with name: {fi.ChildObjectName}", ConsoleMessageScope.NewTrackers);
+							// this is necessary due to the way MWC handles the data on its fluid objects;
+							// the fullness value on the base object itself is generally not accurate, and instead
+							// the trigger object (of which the base object is a parent) holds the most up-to-date data
+							objToRead = objToRead.transform.Find(fi.ChildObjectName)?.gameObject;
+							if (objToRead == null)
+							{
+								PrintToConsole("-> Child object not found. Breaking.", ConsoleMessageScope.NewTrackers);
+								break;
+							}
+							else
+								PrintToConsole("-> Child object found. We'll reference its playmaker.", ConsoleMessageScope.NewTrackers);
+						}
+						PrintToConsole($"-> Final object to read FSM from: {objToRead}.", ConsoleMessageScope.NewTrackers);
+						FullnessTracker ft = gameObj.AddComponent<FullnessTracker>();
+						ft.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(objToRead, fi.FsmName).FsmVariables, fi);
+						bwt = ft;
+						PrintToConsole($"Fullness tracker initialized.", ConsoleMessageScope.NewTrackers);
+						break;
+					case TrackerType.Quantity:
+						if (!SettingShowPackageQuantity.GetValue())
+							break;
+						QuantityTracker qt = gameObj.AddComponent<QuantityTracker>(); // qt uwu  // 2026 update: forgot I wrote this. fantastic bit, past me
+						qt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Use").FsmVariables);
+						bwt = qt;
+						break;
+					case TrackerType.Freshness:
+						if (!SettingShowFoodFreshness.GetValue())
+							break;
+						FreshnessInfo fri = (FreshnessInfo)trackerInfo;
+						FreshnessTracker frt = gameObj.AddComponent<FreshnessTracker>();
+						frt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Use").FsmVariables, fri);
+						bwt = frt;
+						break;
 
-				#region MWC-exclusive trackers
-				case TrackerType.MWC_Variant:
-					if (!SettingShowObjectVariants.GetValue())
+					#region MSC-exclusive trackers
+					case TrackerType.MSC_SparkPlug:
+						if (!SettingShowCarPartCondition.GetValue())
+							break;
+						MSC_SparkPlugTracker spt = gameObj.AddComponent<MSC_SparkPlugTracker>();
+						spt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Use").FsmVariables);
+						bwt = spt;
 						break;
-					VariantTracker vt = gameObj.AddComponent<VariantTracker>();
-					vt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Data").FsmVariables, trackerInfo);
-					bwt = vt;
-					break;
-				case TrackerType.MWC_VariantAndWear:
-					if (!SettingShowObjectVariants.GetValue() || !SettingShowCarPartCondition.GetValue())
-						break;
-					VariantAndWearTracker vwt = gameObj.AddComponent<VariantAndWearTracker>();
-					vwt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Data").FsmVariables, trackerInfo);
-					bwt = vwt;
-					break;
-				#endregion
+					#endregion
 
-				default:
-					ModConsole.Error($"Part Inspector attempted to initialize with an invalid tracker type: {tt}");
-					return;
+					#region MWC-exclusive trackers
+					case TrackerType.MWC_Variant:
+						if (!SettingShowObjectVariants.GetValue())
+							break;
+						VariantTracker vt = gameObj.AddComponent<VariantTracker>();
+						vt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Data").FsmVariables, trackerInfo);
+						bwt = vt;
+						break;
+					case TrackerType.MWC_VariantAndWear:
+						if (!SettingShowObjectVariants.GetValue() || !SettingShowCarPartCondition.GetValue())
+							break;
+						VariantAndWearTracker vwt = gameObj.AddComponent<VariantAndWearTracker>();
+						vwt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Data").FsmVariables, trackerInfo);
+						bwt = vwt;
+						break;
+					#endregion
+
+					default:
+						ModConsole.Error($"Part Inspector attempted to initialize with an invalid tracker type: {tt}");
+						return;
+				}
+				// if we're left with a type and haven't yet initialized, do so now following a standard pattern
+				if (newTrackerType != null && typeof(BaseTracker).IsAssignableFrom(newTrackerType))
+				{
+					PrintToConsole($"Initializing new tracker  (type: {newTrackerType})", ConsoleMessageScope.NewTrackers);
+					BaseTracker bt = (BaseTracker)gameObj.AddComponent(newTrackerType);
+					bt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Data").FsmVariables);
+					bwt = bt;
+				}
+				if (bwt != null)
+				{
+					bwt.BuildDisplayText();
+					_allTrackers.Add(gameObj, bwt);
+					PrintToConsole($"A tracker component of type {bwt.GetType()} was added to an object named \"{gameObj.name}\".", ConsoleMessageScope.NewTrackers);
+				}
 			}
-			// if we're left with a type and haven't yet initialized, do so now following a standard pattern
-			if (newTrackerType != null && typeof(BaseTracker).IsAssignableFrom(newTrackerType))
+			catch (Exception e)
 			{
-				PrintToConsole($"Initializing new tracker  (type: {newTrackerType})", ConsoleMessageScope.NewTrackers);
-				BaseTracker bt = (BaseTracker)gameObj.AddComponent(newTrackerType);
-				bt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Data").FsmVariables);
-				bwt = bt;
-			}
-			if (bwt != null)
-			{
-				bwt.BuildDisplayText();
-				_allTrackers.Add(gameObj, bwt);
-				PrintToConsole($"A tracker component of type {bwt.GetType()} was added to an object named \"{gameObj.name}\".", ConsoleMessageScope.NewTrackers);
+				ModConsole.Warning($"Failed to add a tracker to object {gameObj.name}. Stack trace: {e.StackTrace}");
+				ModConsole.Warning("Please report this as a bug! You should be able to continue playing.");
+				_blacklistedObjects.Add(gameObj);
 			}
 		}
 		#endregion
