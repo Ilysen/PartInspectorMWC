@@ -14,6 +14,29 @@ namespace Ceres.PartInspectorMWC.Trackers
 	internal class VariantTracker : BaseTracker
 	{
 		/// <summary>
+		/// Used to track initialization info for variant trackers.
+		/// Variants in MWC don't have a standardized way to distinguish between them;
+		/// sometimes they use Type (an int), sometimes they use Model (a string), etc.
+		/// This struct allows each given part type to define how its variant is determined,
+		/// and the human-readable name associated with each variant type.
+		/// </summary>
+		internal struct VariantInfo
+		{
+			internal Dictionary<object, string> Variants;
+			internal string VariantKey;
+			internal Type VariantKeyType;
+			internal bool AlsoTracksWear;
+
+			internal VariantInfo(Dictionary<object, string> Variants, Type VariantKeyType, string VariantKey = "Type", bool AlsoTracksWear = false)
+			{
+				this.Variants = Variants;
+				this.VariantKeyType = VariantKeyType;
+				this.VariantKey = VariantKey;
+				this.AlsoTracksWear = AlsoTracksWear;
+			}
+		}
+
+		/// <summary>
 		/// The name of the FSM variable that keeps track of this object's variant.
 		/// </summary>
 		private string _variantKey;

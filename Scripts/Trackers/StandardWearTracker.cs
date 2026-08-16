@@ -27,16 +27,20 @@ namespace Ceres.PartInspectorMWC.Trackers
 				_wearKey = (string)extraArgs[0];
 				_dbInfo = (FsmVariables)extraArgs[1];
 			}
+			else
+				_wearKey = "Wear";
 		}
 
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{
-			float effectiveWear = FsmVariables.GetFsmFloat(_wearKey).Value;
+			float effectiveWear;
 			// in MSC, broken parts track whether or not they're broken using a separate variable
 			// as a result, we have to override the usual wear value if they're busted
 			if (PartInspectorScript.IsMSC && _dbInfo.GetFsmBool("Damaged").Value)
 				effectiveWear = 0;
+			else
+				effectiveWear = FsmVariables.GetFsmFloat(_wearKey).Value;
 			DisplayText = $"{InitialName} - {GetDescriptor(effectiveWear)}";
 		}
 

@@ -8,6 +8,11 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 
 ## Changelog
 
+### TBD, 2026
+#### Version 0.2.0
+* Unified the MSC and MWC versions of the mod. The same file should now work on both games, and adjust accordingly to match!
+* Added a new tracker type, disabled by default, that shows the current freshness of food that can spoil.
+
 ### 1 August, 2026
 #### Version 0.1.6
 * Fixed an issue where two-stroke fuel wouldn't have its fullness tracked correctly.
