@@ -2,7 +2,7 @@
 using System;
 using UnityEngine;
 
-namespace Ceres.PartInspectorMWC.Trackers
+namespace Ceres.PartInspector.Trackers
 {
 	/// <summary>
 	/// Tracks fullness. What this means varies depending on the part; this tracker just keeps tabs on a specific value
@@ -39,7 +39,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 		}
 
 		/// <summary>
-		/// The max fluid that this container can hold. Assigned in <see cref="Ceres.PartInspectorMWC.CreateTrackerForPart(GameObject, PartInspectorMWC.TrackerType)"/> during initialization and used to calculate fractions (i.e. "half full") in <see cref="BuildDisplayText"/>.
+		/// The max fluid that this container can hold. Assigned in <see cref="Ceres.PartInspector.CreateTrackerForPart(GameObject, PartInspector.TrackerType)"/> during initialization and used to calculate fractions (i.e. "half full") in <see cref="BuildDisplayText"/>.
 		/// </summary>
 		private float _maxFullness = 1f;
 

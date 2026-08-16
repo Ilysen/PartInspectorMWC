@@ -7,8 +7,8 @@
     <ProjectGuid>{B618A7DA-3DCB-4E6E-B092-54ACFD1A36A8}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>PartInspectorMWC</RootNamespace>
-    <AssemblyName>PartInspectorMWC</AssemblyName>
+    <RootNamespace>Ceres.PartInspector</RootNamespace>
+    <AssemblyName>PartInspector</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile>Unity Full v3.5</TargetFrameworkProfile>
@@ -59,7 +59,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Scripts\PartInspectorMWC.cs" />
+    <Compile Include="Scripts\PartInspector.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Scripts\Trackers\MSC\SparkPlugTracker.cs" />
     <Compile Include="Scripts\Trackers\MWC\VariantAndWearTracker.cs" />
@@ -68,8 +68,8 @@
     <Compile Include="Scripts\Trackers\FreshnessTracker.cs" />
     <Compile Include="Scripts\Trackers\OilFilterTracker.cs" />
     <Compile Include="Scripts\Trackers\QuantityTracker.cs" />
-    <Compile Include="Scripts\Trackers\SimpleWearTracker.cs" />
-    <Compile Include="Scripts\Trackers\StandardWearTracker.cs" />
+    <Compile Include="Scripts\Trackers\IntactOrBrokenTracker.cs" />
+    <Compile Include="Scripts\Trackers\PartConditionTracker.cs" />
     <Compile Include="Scripts\Trackers\_BaseTracker.cs" />
   </ItemGroup>
   <ItemGroup>

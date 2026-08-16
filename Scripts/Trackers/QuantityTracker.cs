@@ -1,6 +1,6 @@
 ﻿using HutongGames.PlayMaker;
 
-namespace Ceres.PartInspectorMWC.Trackers
+namespace Ceres.PartInspector.Trackers
 {
 	/// <summary>
 	/// Tracks quantity of items remaining, for things like spark plug boxes and fuse packages.
@@ -17,6 +17,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 			_quantity = fsmVars.GetFsmInt("Quantity");
 		}
 
+		// using Unity's update here isn't super clean, but eh. if it ain't broke
 		private void Update()
 		{
 			var qty = _quantity.Value;

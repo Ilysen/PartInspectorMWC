@@ -1,7 +1,6 @@
 ﻿using HutongGames.PlayMaker;
-using UnityEngine;
 
-namespace Ceres.PartInspectorMWC.Trackers
+namespace Ceres.PartInspector.Trackers
 {
 	/// <summary>
 	/// Tracks spark plug condition.
@@ -11,7 +10,7 @@ namespace Ceres.PartInspectorMWC.Trackers
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{
-			DisplayText = $"{InitialName} - {StandardWearTracker.GetDescriptor(FsmVariables.GetFsmFloat("Wear").Value)}";
+			DisplayText = $"{InitialName} - {PartConditionTracker.GetDescriptor(FsmVariables.GetFsmFloat("Wear").Value)}";
 		}
 	}
 }

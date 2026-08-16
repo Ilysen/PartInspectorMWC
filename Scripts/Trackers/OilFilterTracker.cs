@@ -1,18 +1,26 @@
 ﻿using HutongGames.PlayMaker;
 using UnityEngine;
 
-namespace Ceres.PartInspectorMWC.Trackers
+namespace Ceres.PartInspector.Trackers
 {
 	/// <summary>
 	/// Tracks how dirty an oil filter is.
 	/// </summary>
 	internal class OilFilterTracker : BaseTracker
 	{
+		private FsmFloat _dirt;
+
+		internal override void Initialize(string initName, FsmVariables fsmVars, params object[] extraArgs)
+		{
+			base.Initialize(initName, fsmVars, extraArgs);
+			_dirt = FsmVariables.GetFsmFloat("Dirt").Value;
+		}
+
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{
 			string newText;
-			float effectiveFilth = FsmVariables.GetFsmFloat("Dirt").Value;
+			float effectiveFilth = _dirt.Value;
 			switch (PartInspectorScript.SettingDisplayPrecision.GetSelectedItemIndex())
 			{
 				case 1: // General description

@@ -1,21 +1,25 @@
 ﻿using HutongGames.PlayMaker;
-using MSCLoader;
-using System;
-using System.Collections.Generic;
-using static Ceres.PartInspectorMWC.PartInspectorScript;
 
-namespace Ceres.PartInspectorMWC.Trackers
+namespace Ceres.PartInspector.Trackers
 {
 	/// <summary>
-	/// Grotesque chimera of <see cref="StandardWearTracker"/> and <see cref="VariantTracker"/> that combines their functionality.
+	/// Grotesque chimera of <see cref="PartConditionTracker"/> and <see cref="VariantTracker"/> that combines their functionality.
 	/// </summary>
 	internal class VariantAndWearTracker : VariantTracker
 	{
+		private FsmFloat _wear;
+
+		internal override void Initialize(string initName, FsmVariables fsmVars, params object[] extraArgs)
+		{
+			base.Initialize(initName, fsmVars, extraArgs);
+			_wear = FsmVariables.GetFsmFloat("Wear");
+		}
+
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{
 			base.BuildDisplayText();
-			DisplayText = $"{DisplayText} - {StandardWearTracker.GetDescriptor(FsmVariables.GetFsmFloat("Wear").Value)}";
+			DisplayText = $"{DisplayText} - {PartConditionTracker.GetDescriptor(_wear.Value)}";
 		}
 	}
 }

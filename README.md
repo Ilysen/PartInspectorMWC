@@ -11,6 +11,7 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 ### TBD, 2026
 #### Version 0.2.0
 * Unified the MSC and MWC versions of the mod. The same file should now work on both games, and adjust accordingly to match!
+	* If you're playing MWC, then there won't be many differences here. If you're playing MSC, however, there are a lot of changes and new features, so make sure you go through your settings thoroughly.
 * Added a new tracker type, disabled by default, that shows the current freshness of food that can spoil.
 
 ### 1 August, 2026

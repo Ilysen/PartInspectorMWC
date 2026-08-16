@@ -1,34 +1,28 @@
 ﻿using HutongGames.PlayMaker;
-using MSCLoader;
 using UnityEngine;
 
-namespace Ceres.PartInspectorMWC.Trackers
+namespace Ceres.PartInspector.Trackers
 {
 	/// <summary>
 	/// Tracks the exact integrity of the assigned part using the provided information. Broken parts will display as broken.
 	/// </summary>
-	internal class StandardWearTracker : BaseTracker
+	internal class PartConditionTracker : BaseTracker
 	{
-		/// <summary>
-		/// The key used to fetch the wear value of this part.
-		/// </summary>
-		private string _wearKey;
-
-		/// <summary>
-		/// Used to track if this part is broken or not. My Summer Car separates these, so we gotta too.
-		/// </summary>
-		private FsmVariables _dbInfo;
+		private FsmFloat _wear;
+		private FsmBool _mscIsDamaged;
 
 		internal override void Initialize(string initName, FsmVariables fsmVars, params object[] extraArgs)
 		{
 			base.Initialize(initName, fsmVars, extraArgs);
 			if (PartInspectorScript.IsMSC)
 			{
-				_wearKey = (string)extraArgs[0];
-				_dbInfo = (FsmVariables)extraArgs[1];
+				string wearKey = (string)extraArgs[0];
+				FsmVariables motorDb = (FsmVariables)extraArgs[1];
+				_wear = FsmVariables.GetFsmFloat(wearKey);
+				_mscIsDamaged = motorDb.GetFsmBool("Damaged");
 			}
 			else
-				_wearKey = "Wear";
+				_wear = FsmVariables.GetFsmFloat("Wear");
 		}
 
 		/// <inheritdoc/>
@@ -37,10 +31,10 @@ namespace Ceres.PartInspectorMWC.Trackers
 			float effectiveWear;
 			// in MSC, broken parts track whether or not they're broken using a separate variable
 			// as a result, we have to override the usual wear value if they're busted
-			if (PartInspectorScript.IsMSC && _dbInfo.GetFsmBool("Damaged").Value)
+			if (PartInspectorScript.IsMSC && _mscIsDamaged.Value)
 				effectiveWear = 0;
 			else
-				effectiveWear = FsmVariables.GetFsmFloat(_wearKey).Value;
+				effectiveWear = _wear.Value;
 			DisplayText = $"{InitialName} - {GetDescriptor(effectiveWear)}";
 		}
 

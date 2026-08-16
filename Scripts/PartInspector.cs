@@ -1,4 +1,4 @@
-﻿using Ceres.PartInspectorMWC.Trackers;
+﻿using Ceres.PartInspector.Trackers;
 using HutongGames.PlayMaker;
 using MSCLoader;
 using System;
@@ -6,12 +6,22 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using UnityEngine;
-using static Ceres.PartInspectorMWC.Trackers.FreshnessTracker;
-using static Ceres.PartInspectorMWC.Trackers.FullnessTracker;
-using static Ceres.PartInspectorMWC.Trackers.VariantTracker;
+using static Ceres.PartInspector.Trackers.FreshnessTracker;
+using static Ceres.PartInspector.Trackers.FullnessTracker;
+using static Ceres.PartInspector.Trackers.VariantTracker;
 
-namespace Ceres.PartInspectorMWC
+namespace Ceres.PartInspector
 {
+	/// <summary>
+	/// Core mod script. This does essentially all of the hard work.
+	/// The way Part Inspector's backend works boils down, roughly, to the following list of essential points:
+	/// <br/><br/>
+	/// <b>1.</b> Determine if parts should have a tracker assigned via heuristic or if it's manually defined in <c><see cref="_partNames"/></c>.<br/>
+	/// <b>2.</b> Instantiate a new tracker on that game object. These are Unity components (i.e. MonoBehaviors) that inherit from <c><see cref="BaseTracker"/></c>.<br/>
+	/// <b>3.</b> Whenever the player looks at a part, give it a tracker if it needs one, and then read data from its assigned tracker and update the display text.<br/><br/>
+	/// That's it! This takes a lot of code to handle and set up, but in practice it's mostly clean.
+	/// There is a lot of caveats and conditionals here, primarily because MSC and MWC have divergent codebases that often track information in completely different ways.
+	/// </summary>
 	public class PartInspectorScript : Mod
 	{
 		#region Metadata
@@ -218,23 +228,62 @@ namespace Ceres.PartInspectorMWC
 		/// </summary>
 		private enum TrackerType
 		{
-			Standard,
-			Simple,
+			/// <summary>
+			/// Tracks a part's wear value, from 100 (max condition) to 0 (broken).<br/><br/>
+			/// This type has very different behavior depending on the game:<br/>
+			/// <b>MSC:</b> Condition is held in specific variables using <c><see cref="_mscSatsumaVars"/></c>.<br/>
+			/// <b>MWC:</b> Condition is held on an FSM on the object itself, so we can simply reference that.
+			/// </summary>
+			PartCondition,
+
+			/// <summary>
+			/// Does exactly what it says on the tin. This is used for blocks and oilpans.
+			/// </summary>
+			IntactOrBroken,
+
+			/// <summary>
+			/// Oil filters track dirtiness as an ascending value rather than a descending one, so they need their own type.
+			/// </summary>
 			OilFilter,
+
+			/// <summary>
+			/// Flexible tracker type used for anything that gradually decreases in amount as it's used. Mostly fluids, but also stuff like ground coffee.<br/>
+			/// <b>Associated data struct:</b> <c><see cref="FullnessInfo"/></c>
+			/// </summary>
 			Fullness,
+
+			/// <summary>
+			/// Used for packages that contain a set number of items, like fuses and battery boxes.<br/>
+			/// </summary>
 			Quantity,
+
+			/// <summary>
+			/// Used for food that goes bad over time.<br/>
+			/// <b>Associated data struct:</b> <c><see cref="FreshnessInfo"/></c>
+			/// </summary>
 			Freshness,
 
+			/// <summary>
+			/// <b>MSC only:</b> Spark plugs in this game function like regular car parts do in MWC, and so they need their own tracker type to handle it.
+			/// TODO: Generalize this.
+			/// </summary>
 			MSC_SparkPlug,
 
+			/// <summary>
+			/// <b>MWC only:</b> Used for items with multiple variants, like grilles and mufflers.
+			/// </summary>
 			MWC_Variant,
+
+			/// <summary>
+			/// <b>MWC only:</b> Combines the behavior of the <c><see cref="MWC_Variant"/></c> and <c><see cref="PartCondition"/></c> trackers.
+			/// </summary>
 			MWC_VariantAndWear,
 		}
 
 		/// <summary>
 		/// Game objects with names in the keys of this dict will gain a wear tracker component when inspected, if they don't have one already, with some of that component's info being taken from the associated value of that key.
 		/// <br/><br/>
-		/// Names with an associated string will be given a <see cref="StandardWearTracker"/> using that string as the wear key; names with an associated <see cref="TrackerType"/> will instead use that type when creating the tracker.
+		/// Names with an associated string will be given a <see cref="PartConditionTracker"/> using that string as the wear key; names with an associated <see cref="TrackerType"/> will instead use that type when creating the tracker.
 		/// </summary>
 		// mmmmm yummy pasta
 		private readonly Dictionary<string, object> _partNames = new Dictionary<string, object>
@@ -286,12 +335,12 @@ namespace Ceres.PartInspectorMWC
 			{ "package(Clone)", TrackerType.Quantity }, // for parts purchased from fleetari. not the most descriptive name in the world, huh?
 
 			// these are here because carbs track their wear using a DIFFERENT SCHEMA THAN EVERY OTHER PART WHYYY-
-			{ "Carburettor(VINXX)", TrackerType.Standard },
-			{ "2 Barrel Carb(VINXX)", TrackerType.Standard },
-			{ "4 Barrell Racing Carb(VINXX)", TrackerType.Standard },
+			{ "Carburettor(VINXX)", TrackerType.PartCondition },
+			{ "2 Barrel Carb(VINXX)", TrackerType.PartCondition },
+			{ "4 Barrell Racing Carb(VINXX)", TrackerType.PartCondition },
 
-			{ "Engine Block(VINX0)", TrackerType.Simple },
-			{ "Oilpan(VINXX)", TrackerType.Simple },
+			{ "Engine Block(VINX0)", TrackerType.IntactOrBroken },
+			{ "Oilpan(VINXX)", TrackerType.IntactOrBroken },
 
 			{ "Fire Extinguisher(VINXX)", new FullnessInfo("Data", MaxValue: 100f ) },
 			{ "Oil filter(VINXX)", TrackerType.OilFilter },
@@ -698,16 +747,17 @@ namespace Ceres.PartInspectorMWC
 		}
 
 		/// <summary>
-		/// Creates a tracker component for the provided <see cref="GameObject"/>.
-		/// See arguments for info on how tracker type is determined.
+		/// Big monolith of a function that parses information about an object and its tracker type and then creates a new tracker for that object based on the info provided.
+		/// Every new tracker type should have handling implemented into this function.
+		/// See docs on the <c>trackerInfo</c> param for important info.
 		/// </summary>
 		/// <param name="gameObj">The <see cref="GameObject"/> that will begin being tracked.</param>
 		/// <param name="trackerInfo">Determines which type of tracker will be used.
-		/// Accepts <see cref="TrackerType"/>, <see cref="FullnessInfo"/>, <see cref="VariantInfo"/>, or null
-		/// (which falls back to <see cref="TrackerType.Standard"/>).</param>
+		/// Accepts <see cref="TrackerType"/>, <see cref="FullnessInfo"/>, <see cref="VariantInfo"/>, <see cref="FreshnessInfo"/>, or null
+		/// (which falls back to <see cref="TrackerType.PartCondition"/>).</param>
 		private void CreateTrackerForPart(GameObject gameObj, object trackerInfo = null)
 		{
-			TrackerType tt = TrackerType.Standard;
+			TrackerType tt = TrackerType.PartCondition;
 			if (trackerInfo is TrackerType t)
 				tt = t;
 			else if (trackerInfo is FullnessInfo)
@@ -721,14 +771,14 @@ namespace Ceres.PartInspectorMWC
 			PrintToConsole($"Creating tracker on game object {gameObj} with type: {tt}", ConsoleMessageScope.NewTrackers);
 			switch (tt)
 			{
-				case TrackerType.Standard:
+				case TrackerType.PartCondition:
 					if (!SettingShowCarPartCondition.GetValue())
 						break;
 					if (!IsMSC) // MWC follows a standardized format for its parts that wear down -- just entrust the setup to the tracker itsef
-						newTrackerType = typeof(StandardWearTracker);
+						newTrackerType = typeof(PartConditionTracker);
 					else // MSC, however, has a whole bunch of finagling that needs to be done, so we do the heavy lifting here
 					{
-						StandardWearTracker swt = gameObj.AddComponent<StandardWearTracker>();
+						PartConditionTracker swt = gameObj.AddComponent<PartConditionTracker>();
 						FsmVariables dbInfo = null;
 						foreach (PlayMakerFSM fsm in _mscMotorDb)
 						{
@@ -744,10 +794,11 @@ namespace Ceres.PartInspectorMWC
 						break;
 					}
 					break;
-				case TrackerType.Simple:
+
+				case TrackerType.IntactOrBroken:
 					if (!SettingShowCarPartCondition.GetValue())
 						break;
-					newTrackerType = typeof(SimpleWearTracker);
+					newTrackerType = typeof(IntactOrBrokenTracker);
 					break;
 				case TrackerType.OilFilter:
 					// realistically I can't imagine a case of someone wanting to know car parts but *not* oil filters, so

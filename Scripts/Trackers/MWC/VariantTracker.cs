@@ -1,10 +1,8 @@
 ﻿using HutongGames.PlayMaker;
-using MSCLoader;
 using System;
 using System.Collections.Generic;
-using static Ceres.PartInspectorMWC.PartInspectorScript;
 
-namespace Ceres.PartInspectorMWC.Trackers
+namespace Ceres.PartInspector.Trackers
 {
 	/// <summary>
 	/// Tracks how worn-down a spark plug is.

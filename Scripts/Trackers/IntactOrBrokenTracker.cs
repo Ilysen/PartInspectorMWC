@@ -1,11 +1,11 @@
 ﻿using HutongGames.PlayMaker;
 
-namespace Ceres.PartInspectorMWC.Trackers
+namespace Ceres.PartInspector.Trackers
 {
 	/// <summary>
 	/// Only tracks whether or not a part is intact or damaged, nothing else. Used for blocks and oilpans.
 	/// </summary>
-	internal class SimpleWearTracker : BaseTracker
+	internal class IntactOrBrokenTracker : BaseTracker
 	{
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
