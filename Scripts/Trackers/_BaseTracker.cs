@@ -9,6 +9,11 @@ namespace Ceres.PartInspector.Trackers
 	internal abstract class BaseTracker : MonoBehaviour
 	{
 		/// <summary>
+		/// Any occurrence of these strings in the display name will be removed before it is displayed.
+		/// </summary>
+		internal static readonly string[] DISPLAY_NAME_TAGS_TO_TRIM = { "(Clone)", "(itemx)", "(VINXX)", "(VINX0)", "(spare)" };
+
+		/// <summary>
 		/// The human-readable name for the part this component is attached to.
 		/// </summary>
 		public string InitialName;
@@ -29,7 +34,9 @@ namespace Ceres.PartInspector.Trackers
 		/// </summary>
 		internal virtual void Initialize(string initName, FsmVariables fsmVars, params object[] extraArgs)
 		{
-			InitialName = initName.Replace("(Clone)", "").Replace("(itemx)", "").Replace("(VINXX)", "").Replace("(VINX0)", "");
+			foreach (var tag in DISPLAY_NAME_TAGS_TO_TRIM)
+				initName = initName.Replace(tag, "");
+			InitialName = initName;
 			FsmVariables = fsmVars;
 		}
 
