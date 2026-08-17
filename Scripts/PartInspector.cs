@@ -32,6 +32,8 @@ namespace Ceres.PartInspector
 		public override string Version => "0.2.0";
 		public override string Description => "Inspect your parts! (And containers and filters and bolts and…)";
 		public override Game SupportedGames => Game.MySummerCar_And_MyWinterCar;
+
+		public readonly bool Unstable = true;
 		#endregion
 
 		#region Mod setup and settings
@@ -74,6 +76,8 @@ namespace Ceres.PartInspector
 			SetupFunction(Setup.OnLoad, Mod_OnLoad);
 			SetupFunction(Setup.Update, Mod_OnUpdate);
 			SetupFunction(Setup.ModSettings, Mod_Settings);
+			if (Unstable)
+				ModConsole.Warning("You are using an EXPERIMENTAL version of Part Inspector.\n\n<b>If you didn't expect to see this message:</b> Please close the game, return to the mod page, and download the other version there. <i>Support will not be provided.</i>\n\n<b>If you did, and you know the risks:</b> Go right ahead.");
 		}
 
 		private void Mod_Settings()
