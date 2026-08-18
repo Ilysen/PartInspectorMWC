@@ -707,18 +707,29 @@ namespace Ceres.PartInspector
 					!IsMSC && boltSize == 1.2f)
 				{
 					var valveDraft = boltVals.FindFsmFloat(IsMSC ? "Alignment" : "AdjustmentF");
-					var valveName = boltVals.FindFsmString("Valve");
-					if (valveDraft != null && valveName != null)
+					object valveData;
+					if (IsMSC)
+						valveData = boltVals.FindFsmString("Valve");
+					else
+						valveData = boltVals.FindFsmInt("Nmbr");
+					if (valveDraft != null && valveData != null)
 					{
-						bool isExhaust = valveName.Value.Contains("exhaust");
+						bool isExhaust;
+						if (IsMSC)
+							isExhaust = valveData.ToString().Contains("exhaust");
+						else
+						{
+							FsmInt index = (FsmInt)valveData; // valve index?? msc vr real???
+							isExhaust = index.Value % 2 == 0;
+						}
 						toDisplay = $"{(isExhaust ? "Exhaust" : "Intake")} valve lash - {Math.Round(valveDraft.Value / 100, 4)} mm";
 						PrintToConsole("…We're looking at a valve. Displaying lash.", ConsoleMessageScope.BoltInspection);
 						_lastBoltInspected = null; // since we're tuning in real-time, we need to constantly update this
 						goto calculateText;
 					}
 				}
-				if (_showSuspensionTuning &&
-					(IsMSC && boltSize == 0.65f && boltVals.FindFsmFloat("AdjustmentStep")?.Value == 100))
+				// miraculously, this functions the same across both games!
+				if (_showSuspensionTuning && boltSize == 0.65f && boltVals.FindFsmFloat("AdjustmentStep")?.Value == 100)
 				{
 					var alignment = boltVals.FindFsmFloat("Alignment").Value;
 					var max = boltVals.FindFsmFloat("Max").Value;

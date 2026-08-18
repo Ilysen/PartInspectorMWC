@@ -4,6 +4,10 @@ This is a mod for My Summer Car and My Winter Car that lets you look at car part
 
 Part Inspector is licensed under the [GNU General Public License v3](http://www.gnu.org/licenses/agpl.html), which can be found in full in [LICENSE.md](LICENSE.md).
 
+# TODO LIST BEFORE NEXT RELEASE
+* Finalize lash valve stuff.
+* Decide whether or not to cut bolt inspection for MSC.
+
 ## Changelog
 
 ### TBD, 2026
