@@ -32,7 +32,7 @@ namespace Ceres.PartInspector.Trackers
 		/// Initializes this wear tracker with the provided arguments.
 		/// A name is required, but after that, any number of arguments can be passed. Subtypes can use this for special logic.
 		/// </summary>
-		internal virtual void Initialize(string initName, FsmVariables fsmVars, params object[] extraArgs)
+		internal virtual void Initialize(string initName, FsmVariables fsmVars = null, params object[] extraArgs)
 		{
 			foreach (var tag in DISPLAY_NAME_TAGS_TO_TRIM)
 				initName = initName.Replace(tag, "");
@@ -41,11 +41,10 @@ namespace Ceres.PartInspector.Trackers
 		}
 
 		/// <summary>
-		/// Returns the wear percentage for this part.
-		/// MSC doesn't track this in a standardized way, so each different type of tracker needs its own logic to get the appropriate value.
-		/// This should be overridden on all subtypes, but is virtual and not abstract because some types don't need to worry about it.
+		/// Many tracker subtypes find it convenient to have an easy helper accessible to get a percentage representing how full/damaged/whatever they are.
+		/// This is a generic overrideable function that lets them do that easily.
 		/// </summary>
-		internal virtual float GetWearPercentage() => 0;
+		internal virtual float GetPercentage() => 0;
 
 		/// <summary>
 		/// Updates the <see cref="DisplayText"/> of this wear tracker. Subtypes must each override this function.

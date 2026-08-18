@@ -7,10 +7,22 @@ namespace Ceres.PartInspector.Trackers
 	/// </summary>
 	internal class IntactOrBrokenTracker : BaseTracker
 	{
+		private FsmBool _mscIsDamaged;
+		private FsmFloat _mwcWearVal;
+
+		internal override void Initialize(string initName, FsmVariables fsmVars = null, params object[] extraArgs)
+		{
+			base.Initialize(initName, fsmVars, extraArgs);
+			if (PartInspectorScript.IsMSC)
+				_mscIsDamaged = FsmVariables.GetFsmBool("Damaged");
+			else
+				_mwcWearVal = FsmVariables.GetFsmFloat("Wear");
+		}
+
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{
-			DisplayText = $"{InitialName} - {((PartInspectorScript.IsMSC ? !FsmVariables.GetFsmBool("Damaged").Value : FsmVariables.GetFsmFloat("Wear").Value != 0) ? "Intact" : "Broken")}";
+			DisplayText = $"{InitialName} - {((PartInspectorScript.IsMSC ? !_mscIsDamaged.Value :_mwcWearVal.Value != 0) ? "Intact" : "Broken")}";
 		}
 	}
 }

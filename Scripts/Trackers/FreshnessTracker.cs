@@ -38,7 +38,7 @@ namespace Ceres.PartInspector.Trackers
 				DisplayText = string.Empty;
 				return;
 			}
-			float freshnessPercent = GetWearPercentage();
+			float freshnessPercent = GetPercentage();
 			switch (PartInspectorScript.SettingDisplayPrecision.GetSelectedItemIndex())
 			{
 				case 1: // General description
@@ -54,6 +54,6 @@ namespace Ceres.PartInspector.Trackers
 			DisplayText = $"{(newText != null ? $"{newText} " : "")}{InitialName}";
 		}
 
-		internal override float GetWearPercentage() => (_curFreshness.Value / _maxFreshness) * 100;
+		internal override float GetPercentage() => (_curFreshness.Value / _maxFreshness) * 100;
 	}
 }

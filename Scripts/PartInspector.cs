@@ -380,7 +380,7 @@ namespace Ceres.PartInspector
 		/// <summary>
 		/// Objects exclusive to MWC.
 		/// </summary>
-		private static readonly Dictionary<string, object> _mwcPartNames = new Dictionary<string, object>()
+		private static readonly Dictionary<string, object> _mwcObjectDatabase = new Dictionary<string, object>()
 		{
 			{ "automatic transmission fluid(itemx)", new FullnessInfo("Data", MaxValue: 1f, DisplayAsFluid: true, ChildObjectName: "ATFOilTrigger" ) },
 			{ "package(Clone)", TrackerType.Quantity }, // for parts purchased from fleetari. not the most descriptive name in the world, huh?
@@ -457,33 +457,12 @@ namespace Ceres.PartInspector
 				}
 				else
 				{
-					PrintToConsole($"-> Combining {_sharedObjectNames.Count} shared entries plus {_mwcPartNames.Count} MWC-exclusive entries…", ConsoleMessageScope.Core);
-					_mwcPartNames.ToList().ForEach(x => _cachedObjectNames.Add(x.Key, x.Value));
+					PrintToConsole($"-> Combining {_sharedObjectNames.Count} shared entries plus {_mwcObjectDatabase.Count} MWC-exclusive entries…", ConsoleMessageScope.Core);
+					_mwcObjectDatabase.ToList().ForEach(x => _cachedObjectNames.Add(x.Key, x.Value));
 				}
 				PrintToConsole($"…done! Final list is {_cachedObjectNames.Count} entries long.", ConsoleMessageScope.Core);
 				return _cachedObjectNames;
 			}
-		}
-		#endregion
-
-		#region Debug
-		internal enum ConsoleMessageScope
-		{
-			Core, // Core logic that we always log
-			NewTrackers, // Whenever a new tracker is created
-			Verification, // Detailed steps for detecting if a given object is a valid part
-			BoltInspection, // Step-by-step process for viewing bolts
-		}
-
-		internal static void PrintToConsole(object Message, ConsoleMessageScope Context)
-		{
-			if (Context == ConsoleMessageScope.Verification && !_logVerification)
-				return;
-			if (Context == ConsoleMessageScope.NewTrackers && !_logNewTrackers)
-				return;
-			if (Context == ConsoleMessageScope.BoltInspection && !_logBoltSize)
-				return;
-			ModConsole.Print($"[PI] {Message}");
 		}
 		#endregion
 
@@ -646,7 +625,7 @@ namespace Ceres.PartInspector
 				// if it's not, this isn't something with a tracker -- back out
 				if (tryPartLookup)
 				{
-					PrintToConsole("-> Now checking for name in PartNames.", ConsoleMessageScope.Verification);
+					PrintToConsole("-> Now checking for name in ObjectDatabase.", ConsoleMessageScope.Verification);
 					if (!ObjectDatabase.Keys.Contains(lookedObj.name))
 					{
 						PrintToConsole("--> Part name is not present. Doing a final check on the parent object…", ConsoleMessageScope.Verification);
@@ -670,7 +649,7 @@ namespace Ceres.PartInspector
 
 				PrintToConsole($"Detected a valid object named \"{lookedObj.name}\". Adding tracker.", ConsoleMessageScope.NewTrackers);
 				CreateTrackerForPart(lookedObj, ObjectDatabase.ContainsKey(lookedObj.name) ? ObjectDatabase[lookedObj.name] : null);
-				//CreateTrackerForPart(lookedObj, trackerTypeOverride ?? (_partNames.ContainsKey(lookedObj.name) ? _partNames[lookedObj.name] : null));
+				//CreateTrackerForPart(lookedObj, trackerTypeOverride ?? (_ObjectDatabase.ContainsKey(lookedObj.name) ? _ObjectDatabase[lookedObj.name] : null));
 			}
 		}
 
@@ -803,6 +782,8 @@ namespace Ceres.PartInspector
 		/// Big monolith of a function that parses information about an object and its tracker type and then creates a new tracker for that object based on the info provided.
 		/// Every new tracker type should have handling implemented into this function.
 		/// See docs on the <c>trackerInfo</c> param for important info.
+		/// <br/><br/>
+		/// TODO: Please god refactor me to init via static functions on each subtype or something, instead of a giant switch. block
 		/// </summary>
 		/// <param name="gameObj">The <see cref="GameObject"/> that will begin being tracked.</param>
 		/// <param name="trackerInfo">Determines which type of tracker will be used.
@@ -983,7 +964,6 @@ namespace Ceres.PartInspector
 				}
 				if (bwt != null)
 				{
-					bwt.BuildDisplayText();
 					_allTrackerInstances.Add(gameObj, bwt);
 					PrintToConsole($"A tracker component of type {bwt.GetType()} was added to an object named \"{gameObj.name}\".", ConsoleMessageScope.NewTrackers);
 				}
@@ -995,12 +975,33 @@ namespace Ceres.PartInspector
 				_blacklistedObjects.Add(gameObj);
 				if (bwt != null) // in case the error happened during tracker init -- remove it
 				{
-					bwt.enabled = false;
-					GameObject.Destroy(bwt);
-					_allTrackerInstances.Remove(gameObj);
+					bwt.enabled = false; // disable it first,
+					GameObject.Destroy(bwt); // then remove it outright
+					_allTrackerInstances.Remove(gameObj); // technically it should never end up in the list anyway, but it doesn't hurt to be sure!
 				}
 				throw e;
 			}
+		}
+		#endregion
+
+		#region Debug
+		internal enum ConsoleMessageScope
+		{
+			Core, // Core logic that we always log
+			NewTrackers, // Whenever a new tracker is created
+			Verification, // Detailed steps for detecting if a given object is a valid part
+			BoltInspection, // Step-by-step process for viewing bolts
+		}
+
+		internal static void PrintToConsole(object Message, ConsoleMessageScope Context)
+		{
+			if (Context == ConsoleMessageScope.Verification && !_logVerification)
+				return;
+			if (Context == ConsoleMessageScope.NewTrackers && !_logNewTrackers)
+				return;
+			if (Context == ConsoleMessageScope.BoltInspection && !_logBoltSize)
+				return;
+			ModConsole.Print($"[PI] {Message}");
 		}
 		#endregion
 	}

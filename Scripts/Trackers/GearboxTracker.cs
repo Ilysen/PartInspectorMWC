@@ -8,18 +8,13 @@ namespace Ceres.PartInspector.Trackers
 	{
 		private FsmFloat _mscFinalGearRatio;
 
+		internal override string GetPartName => $"{base.GetPartName} (Ratio {(PartInspectorScript.IsMSC ? _mscFinalGearRatio.Value.ToString() : "TODO")})";
+
 		internal override void Initialize(string initName, FsmVariables fsmVars, params object[] extraArgs)
 		{
 			base.Initialize(initName, fsmVars, extraArgs);
 			if (PartInspectorScript.IsMSC)
 				_mscFinalGearRatio = PlayMakerExtensions.GetPlayMaker(GameObject.Find("DatabaseMechanics/Gears"), "Data").FsmVariables.FindFsmFloat("FinalGear");
-		}
-
-		internal override void BuildDisplayText()
-		{
-			base.BuildDisplayText();
-			if (PartInspectorScript.IsMSC)
-				DisplayText = DisplayText.Replace(InitialName, $"{InitialName} (Ratio {_mscFinalGearRatio.Value})");
 		}
 	}
 }

@@ -4,7 +4,10 @@ using UnityEngine;
 namespace Ceres.PartInspector.Trackers
 {
 	/// <summary>
-	/// Tracks the exact integrity of the assigned part using the provided information. Broken parts will display as broken.
+	/// Displays the condition of the assigned part. Broken parts will display as broken.
+	/// The exact behavior of this tracker varies a lot depending on the game:<br/>
+	/// <b>MSC:</b> Tracks the central motor db, reading wear from an associated key in its variables.<br/>
+	/// <b>MWC:</b> Tracks the wear value on the part's own Data fsm.
 	/// </summary>
 	internal class PartConditionTracker : BaseTracker
 	{

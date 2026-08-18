@@ -5,18 +5,18 @@ using UnityEngine;
 namespace Ceres.PartInspector.Trackers
 {
 	/// <summary>
-	/// Tracks fullness. What this means varies depending on the part; this tracker just keeps tabs on a specific value
-	/// as well as the maximum amount that it previously sat at. This is used for fluid containers, ground coffee, etc.;
-	/// anything that has an amount of contents that can be used up over time can be handled by one of these.
+	/// Tracks fullness. What this means varies depending on the object; this tracker just keeps tabs on a specific value
+	/// as well as the maximum amount that it previously sat at. This is used for fluid containers, ground coffee, etc.
+	/// <br/><br/>
+	/// There is no hard and fast rule, but generally, anything that measures with a decimal will prefer this type, whileanything that measures
+	/// with a whole number will prefer a <c><see cref="QuantityTracker"/></c> instead.
 	/// <br/><br/>
 	/// Because they already have a built-in way of checking their contents, gasoline and diesel canisters are excluded.
 	/// </summary>
 	internal class FullnessTracker : BaseTracker
 	{
 		/// <summary>
-		/// Used to track initialization info for fullness trackers, which have to account for many different values.
-		/// This struct can be used to designate the name of the FSM variable that's being tracked, as well as its maximum value (for percentage/ratio calculations)
-		/// and whether or not it's a fluid (for deciding whether to display liters remaining or just the percentage left.)
+		/// Used to track initialization info for fullness trackers, which have to account for many different permutations.
 		/// </summary>
 		internal struct FullnessInfo
 		{
@@ -24,7 +24,19 @@ namespace Ceres.PartInspector.Trackers
 			internal float MaxValue;
 			internal float MinValue;
 			internal string FsmName;
+
+			/// <summary>
+			/// If true, the most precise measurement mode will show the amount of L or mL left in the container.
+			/// If false, it will just show a percentage instead.
+			/// </summary>
 			internal bool DisplayAsFluid;
+
+			/// <summary>
+			/// Most fluid containers actually have a funky thing going on; they have their own fullness value that updates sporadically,
+			/// and the actual more accurate fullness value is on a separate game object that the container one is a parent of.
+			/// If this name is provided, FSMs will be read from a child object of that name, instead of from the parent object itself.
+			/// <br/><br/>Notably, not read by the tracker itself. Instead used in <c><see cref="PartInspectorScript.CreateTrackerForPart(GameObject, object)"/></c>.
+			/// </summary>
 			internal string ChildObjectName;
 
 			internal FullnessInfo(string FsmName = "Use", string ValueKey = "Fluid", float MaxValue = default, float MinValue = 0, bool DisplayAsFluid = default, string ChildObjectName = null)
@@ -43,6 +55,9 @@ namespace Ceres.PartInspector.Trackers
 		/// </summary>
 		private float _maxFullness = 1f;
 
+		/// <summary>
+		/// The minimum fluid that this container can hold. It is not always 0, because this game's code is evil.
+		/// </summary>
 		private float _minFullness = 0f;
 
 		/// <summary>
@@ -51,9 +66,14 @@ namespace Ceres.PartInspector.Trackers
 		private FsmFloat _fullness;
 
 		/// <summary>
-		/// If true, exact percentage display will show the remaining mL instead. If false, it'll show the percentage as usual.
+		/// See: <c><see cref="FullnessInfo.DisplayAsFluid"/></c>
 		/// </summary>
 		private bool _displayAsFluid = true;
+
+		/// <summary>
+		/// How full this tracker was last frame.
+		/// </summary>
+		private float _cachedFullnessLevel;
 
 		/// <inheritdoc/>
 		internal override void Initialize(string initName, FsmVariables fsmVars, params object[] extraArgs)
@@ -67,25 +87,21 @@ namespace Ceres.PartInspector.Trackers
 		}
 
 		/// <inheritdoc/>
-		internal override float GetWearPercentage() => (_fullness.Value / _maxFullness) * 100;
-
-		/// <summary>
-		/// How full this tracker was last frame.
-		/// </summary>
-		private float _cachedFullnessLevel;
+		internal override float GetPercentage() => (_fullness.Value / _maxFullness) * 100;
 
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{
 			if (_fullness.Value <= _minFullness)
 			{
+				// for more info on why we do this, see documentation on the same behavior in QuantityTracker
 				if (_cachedFullnessLevel > _minFullness)
 					DisplayText = "Empty";
 				else
 					DisplayText = string.Empty;
 				return;
 			}
-			float percentFull = GetWearPercentage();
+			float percentFull = GetPercentage();
 			string newText;
 			switch (PartInspectorScript.SettingItemDisplayPrecision.GetSelectedItemIndex())
 			{
