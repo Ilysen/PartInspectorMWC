@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using UnityEngine;
-using Spare_Parts;
 using static Ceres.PartInspector.Trackers.FreshnessTracker;
 using static Ceres.PartInspector.Trackers.FullnessTracker;
 using static Ceres.PartInspector.Trackers.VariantTracker;
@@ -17,7 +16,7 @@ namespace Ceres.PartInspector
 	/// Core mod script. This does essentially all of the hard work.
 	/// The way Part Inspector's backend works boils down, roughly, to the following list of essential points:
 	/// <br/><br/>
-	/// <b>1.</b> Determine if parts should have a tracker assigned via heuristic or if it's manually defined in <c><see cref="_partNames"/></c>.<br/>
+	/// <b>1.</b> Determine if parts should have a tracker assigned via heuristic or if it's manually defined in <c><see cref="ObjectDatabase"/></c>.<br/>
 	/// <b>2.</b> Instantiate a new tracker on that game object. These are Unity components (i.e. MonoBehaviors) that inherit from <c><see cref="BaseTracker"/></c>.<br/>
 	/// <b>3.</b> Whenever the player looks at a part, give it a tracker if it needs one, and then read data from its assigned tracker and update the display text.<br/><br/>
 	/// That's it! This takes a lot of code to handle and set up, but in practice it's mostly clean.
@@ -33,6 +32,10 @@ namespace Ceres.PartInspector
 		public override string Description => "Inspect your parts! (And containers and filters and bolts and…)";
 		public override Game SupportedGames => Game.MySummerCar_And_MyWinterCar;
 
+		/// <summary>
+		/// If true, throws a big message every time the main menu loads, so people know this isn't a version intended for regular use.
+		/// (Not that people read big messages.)
+		/// </summary>
 		public readonly bool Unstable = true;
 		#endregion
 
@@ -63,13 +66,6 @@ namespace Ceres.PartInspector
 		/// I figure that there's no harm in it, though!)
 		/// </summary>
 		internal static bool _logVerification, _logNewTrackers, _logBoltSize;
-
-		/// <summary>
-		/// This gets checked a lot, so we cache it in OnLoad() for performance
-		/// </summary>
-		public static bool IsMSC;
-
-		public static bool IsModLoaded_SpareParts;
 
 		public override void ModSetup()
 		{
@@ -114,7 +110,7 @@ namespace Ceres.PartInspector
 				new string[] { "Show exact information", "Show general description", "Show too big/too small only" }, 1,
 				() => _boltSizeMode = SettingBoltSizePrecision.GetSelectedItemIndex());
 			SettingTextUpdateFrequency = Settings.AddSlider(nameof(SettingTextUpdateFrequency), "Text update frequency<color=yellow>*</color>",
-				1, 10, 10, RebuildDisplays);
+				1, 10, 10, () => _timeBetweenUpdates = SettingTextUpdateFrequency.GetValue());
 			Settings.AddText("<color=yellow>* Lowering this might have an impact on performance. " +
 				"Only use it if you find the default rate to be too sluggish.</color>");
 
@@ -146,15 +142,50 @@ namespace Ceres.PartInspector
 
 		#region Cached vars
 		/// <summary>
+		/// Self-explanatory. This is set up in <c><see cref="Mod_OnLoad"/></c>, so it should always be safe to use in runtime.
+		/// </summary>
+		public static bool IsMSC;
+
+		/// <summary>
+		/// Self-explanatory. This is set up in <c><see cref="Mod_OnLoad"/></c>, so it should always be safe to use in runtime.
+		/// </summary>
+		public static bool IsModLoaded_SpareParts;
+
+		/// <summary>
 		/// Cached reference to the interaction GUI global FSM.
 		/// </summary>
 		private FsmString _interactionGui;
+
+		/// <summary>
+		/// The text GUI used to display the part's condition. This will always point to either <see cref="_pickedPartGui"/> or <see cref="_interactionGui"/>,
+		/// depending on the value of <see cref="SettingDisplayLocation"/>.
+		/// </summary>
+		private FsmString _displayGui;
 
 		/// <summary>
 		/// Cached reference to the item name display global FSM.
 		/// </summary>
 		private FsmString _pickedPartGui;
 
+		/// <summary>
+		/// Every tracker in the game world, associated to its game object.
+		/// </summary>
+		private Dictionary<GameObject, BaseTracker> _allTrackerInstances;
+
+		/// <summary>
+		/// Objects in this list can never have a tracker added, no matter what.
+		/// In normal conditions, objects only enter this list if they throw an error while having a tracker added to them!
+		/// </summary>
+		private HashSet<GameObject> _blacklistedObjects;
+
+		/// <summary>
+		/// To save performance, and because parts are unlikely to rapidly change condition in a given time period, display names only update every now and then, at timed intervals. This value tracks when the part last updated, in seconds.
+		/// <br/><br/>
+		/// Certain trackers, like fullness trackers, will force early updates if they detect changes in their item's state. This keeps them nice and responsive.
+		/// </summary>
+		private float _timeSinceLastUpdate = 0f;
+
+			#region Settings
 		/// <summary>
 		/// Cached reference to the FSM used to track the object the player is currently looking at.
 		/// We use this instead of <see cref="UnifiedRaycast"/> because it lets us benefit from the game's own logic
@@ -171,7 +202,7 @@ namespace Ceres.PartInspector
 		/// Cached reference to the value of <see cref="SettingShowValveClearance"/>.
 		/// </summary>
 		private bool _showValveClearance;
-		
+
 		/// <summary>
 		/// Cached reference to the value of <see cref="SettingShowSuspensionTuning"/>.
 		/// </summary>
@@ -182,7 +213,13 @@ namespace Ceres.PartInspector
 		/// </summary>
 		private int _boltSizeMode = 3;
 
-		#region Bolt inspection
+		/// <summary>
+		/// Cached reference to the value of <see cref="SettingTextUpdateFrequency"/>.
+		/// </summary>
+		private float _timeBetweenUpdates = 10f;
+		#endregion
+
+			#region Bolt inspection
 		/// <summary>
 		/// Cached reference to whether or not the player is in tool mode.
 		/// </summary>
@@ -210,11 +247,11 @@ namespace Ceres.PartInspector
 		private string _boltSizeText;
 		#endregion
 
-		#region MSC-exclusive
+			#region MSC-exclusive
 		/// <summary>
 		/// MSC-exclusive. The cleanest way to track bolt size is to view this variable, which is attached to the wrench itself.
 		/// </summary>
-		private FsmFloat _curBoltSizeMSC;
+		private FsmFloat _mscCurBoltSize;
 
 		/// <summary>
 		/// Only needed for MSC, which tracks all of its part wear data as an FSM attached to the Satsuma itself.
@@ -225,13 +262,13 @@ namespace Ceres.PartInspector
 		/// Only needed for MSC, which tracks part installation with these lists.
 		/// </summary>
 		private List<PlayMakerFSM> _mscMotorDb;
-			#endregion
+		#endregion
 
 		#endregion
 
-		#region Internal vars
+		#region Object databases
 		/// <summary>
-		/// Used to designate the type of wear tracker a given part should receive, mostly through assignment in <see cref="_partNames"/>.
+		/// Used to designate the type of wear tracker a given part should receive, mostly through assignment in <see cref="ObjectDatabase"/>.
 		/// </summary>
 		private enum TrackerType
 		{
@@ -252,6 +289,8 @@ namespace Ceres.PartInspector
 			/// Oil filters track dirtiness as an ascending value rather than a descending one, so they need their own type.
 			/// </summary>
 			OilFilter,
+
+			Gearbox,
 
 			/// <summary>
 			/// Flexible tracker type used for anything that gradually decreases in amount as it's used. Mostly fluids, but also stuff like ground coffee.<br/>
@@ -293,12 +332,9 @@ namespace Ceres.PartInspector
 		}
 
 		/// <summary>
-		/// Game objects with names in the keys of this dict will gain a wear tracker component when inspected, if they don't have one already, with some of that component's info being taken from the associated value of that key.
-		/// <br/><br/>
-		/// Names with an associated string will be given a <see cref="PartConditionTracker"/> using that string as the wear key; names with an associated <see cref="TrackerType"/> will instead use that type when creating the tracker.
+		/// Objects that are present in both MSC and MWC.
 		/// </summary>
-		// mmmmm yummy pasta
-		private readonly Dictionary<string, object> _partNames = new Dictionary<string, object>
+		private static readonly Dictionary<string, object> _sharedObjectNames = new Dictionary<string, object>
 		{
 			{ "brake fluid(itemx)", new FullnessInfo("Data", MaxValue: 1f, DisplayAsFluid: true, ChildObjectName: "BrakeFluidTrigger" ) },
 			{ "two stroke fuel(itemx)", new FullnessInfo("Data", MaxValue: 5f, DisplayAsFluid: true, ChildObjectName: "TwoStrokeTrigger" ) },
@@ -320,9 +356,13 @@ namespace Ceres.PartInspector
 			{ "pizza(itemx)", new FreshnessInfo(MaxFreshness: 100) },
 			{ "macaron box(itemx)", new FreshnessInfo(MaxFreshness: 100) },
 			{ "milk(itemx)", new FreshnessInfo(MaxFreshness: 100) },
-			{ "pike(itemx)", new FreshnessInfo(MaxFreshness: 40) },
+		};
 
-			#region Parts specific to MSC
+		/// <summary>
+		/// Objects exclusive to MSC.
+		/// </summary>
+		private static readonly Dictionary<string, object> _mscObjectNames = new Dictionary<string, object>()
+		{
 			{ "fire extinguisher(itemx)", new FullnessInfo("Use", MaxValue: 100f ) },
 			{ "spark plug(Clone)", TrackerType.MSC_SparkPlug },
 			{ "oil filter(Clone)", TrackerType.OilFilter },
@@ -334,7 +374,7 @@ namespace Ceres.PartInspector
 			{ "clutch disc(Clone)", "Clutch" },
 			{ "crankshaft(Clone)", "Crankshaft" },
 			{ "fuel pump(Clone)", "Fuelpump" },
-			{ "gearbox(Clone)", "Gearbox" },
+			{ "gearbox(Clone)", TrackerType.Gearbox },
 			{ "head gasket(Clone)", "Headgasket" },
 			{ "piston1(Clone)", "Piston1" },
 			{ "piston2(Clone)", "Piston2" },
@@ -343,9 +383,15 @@ namespace Ceres.PartInspector
 			{ "rocker shaft(Clone)", "Rockershaft" },
 			{ "starter(Clone)", "Starter" },
 			{ "water pump(Clone)", "Waterpump" },
-			#endregion
-			
-			#region Parts specific to MWC
+
+			{ "pike(itemx)", new FreshnessInfo(MaxFreshness: 40) },
+		};
+
+		/// <summary>
+		/// Objects exclusive to MWC.
+		/// </summary>
+		private static readonly Dictionary<string, object> _mwcPartNames = new Dictionary<string, object>()
+		{
 			{ "automatic transmission fluid(itemx)", new FullnessInfo("Data", MaxValue: 1f, DisplayAsFluid: true, ChildObjectName: "ATFOilTrigger" ) },
 			{ "package(Clone)", TrackerType.Quantity }, // for parts purchased from fleetari. not the most descriptive name in the world, huh?
 
@@ -394,37 +440,40 @@ namespace Ceres.PartInspector
 				{ "B", "Facelift" },
 				{ "GT", "GT" },
 			}, typeof(string), "Code" ) },
-			#endregion
 		};
 
 		/// <summary>
-		/// Every wear tracker in the game world, associated to its game object.
+		/// <b>Don't use directly.</b> Use <c><see cref="ObjectDatabase"/></c> instead.
 		/// </summary>
-		private Dictionary<GameObject, BaseTracker> _allTrackers;
+		private static Dictionary<string, object> _cachedObjectNames;
 
 		/// <summary>
-		/// Objects in this list can never have a tracker added, no matter what.
-		/// In normal conditions, objects only enter this list if they throw an error while having a tracker added to them!
+		/// Part Inspector detects which items in the game to add trackers to by referencing them against a central database where object names are
+		/// associated to variable data types that dictate how they should be tracked. This is the main getter function to fetch the full database across
+		/// both games.
 		/// </summary>
-		private HashSet<GameObject> _blacklistedObjects;
-
-		/// <summary>
-		/// The text GUI used to display the part's condition. This will always point to either <see cref="_pickedPartGui"/> or <see cref="_interactionGui"/>,
-		/// depending on the value of <see cref="SettingDisplayLocation"/>.
-		/// </summary>
-		private FsmString _displayGui;
-
-		/// <summary>
-		/// To save performance, and because parts are unlikely to rapidly change condition in a given time period, display names only update every few seconds. This value tracks how often parts update, in seconds.
-		/// <br/><br/>
-		/// Certain trackers, like fullness trackers, will force early updates if they detect changes in their item's state. This keeps them nice and responsive.
-		/// </summary>
-		private float _timeBetweenUpdates = 10f;
-
-		/// <summary>
-		/// How many seconds have elapsed since we last updated displays. See <see cref="_timeBetweenUpdates"/> for more info.
-		/// </summary>
-		private float _timeSinceLastUpdate = 0f;
+		public static Dictionary<string, object> ObjectDatabase
+		{
+			get
+			{
+				if (_cachedObjectNames != null)
+					return _cachedObjectNames;
+				PrintToConsole($"Building part name cache for {(IsMSC ? "MSC" : "MWC")}…", ConsoleMessageScope.Core);
+				_cachedObjectNames = new Dictionary<string, object>(_sharedObjectNames);
+				if (IsMSC)
+				{
+					PrintToConsole($"-> Combining {_sharedObjectNames.Count} shared entries plus {_mscObjectNames.Count} MSC-exclusive entries…", ConsoleMessageScope.Core);
+					_mscObjectNames.ToList().ForEach(x => _cachedObjectNames.Add(x.Key, x.Value));
+				}
+				else
+				{
+					PrintToConsole($"-> Combining {_sharedObjectNames.Count} shared entries plus {_mwcPartNames.Count} MWC-exclusive entries…", ConsoleMessageScope.Core);
+					_mwcPartNames.ToList().ForEach(x => _cachedObjectNames.Add(x.Key, x.Value));
+				}
+				PrintToConsole($"…done! Final list is {_cachedObjectNames.Count} entries long.", ConsoleMessageScope.Core);
+				return _cachedObjectNames;
+			}
+		}
 		#endregion
 
 		#region Debug
@@ -489,7 +538,7 @@ namespace Ceres.PartInspector
 
 				if (IsMSC)
 				{
-					_curBoltSizeMSC = wrenchRaycast.GetPlayMaker("Check").FsmVariables.GetFsmFloat("BoltSize");
+					_mscCurBoltSize = wrenchRaycast.GetPlayMaker("Check").FsmVariables.GetFsmFloat("BoltSize");
 					PrintToConsole("Fetching Satsuma part data…", ConsoleMessageScope.Core);
 					_mscSatsumaVars = PlayMakerExtensions.GetPlayMaker(GameObject.
 						Find("SATSUMA(557kg, 248)").transform.
@@ -514,9 +563,9 @@ namespace Ceres.PartInspector
 				PrintToConsole("Setting up display UI…", ConsoleMessageScope.Core);
 				RefreshDisplayGUI();
 				PrintToConsole("Finalizing setup…", ConsoleMessageScope.Core);
-				_allTrackers = new Dictionary<GameObject, BaseTracker>();
+				_allTrackerInstances = new Dictionary<GameObject, BaseTracker>();
 				_blacklistedObjects = new HashSet<GameObject>();
-				RebuildDisplays();
+				_timeBetweenUpdates = SettingTextUpdateFrequency.GetValue();
 
 				stopwatch.Stop();
 				PrintToConsole($"{Name} initialized after {stopwatch.Elapsed.Milliseconds} ms!", ConsoleMessageScope.Core);
@@ -537,7 +586,7 @@ namespace Ceres.PartInspector
 
 		/// <summary>
 		/// Updates the display text of all existing trackers every <see cref="_timeBetweenUpdates"/> seconds.<br/>
-		/// Also removes entries in <see cref="_allTrackers"/> that have deleted game objects.
+		/// Also removes entries in <see cref="_allTrackerInstances"/> that have deleted game objects.
 		/// </summary>
 		private void UpdateDisplays()
 		{
@@ -546,7 +595,7 @@ namespace Ceres.PartInspector
 			{
 				_timeSinceLastUpdate = 0f;
 				List<GameObject> toRemove = new List<GameObject>();
-				foreach (KeyValuePair<GameObject, BaseTracker> kvp in _allTrackers)
+				foreach (KeyValuePair<GameObject, BaseTracker> kvp in _allTrackerInstances)
 				{
 					// Ensure that destroyed objects have their trackers disposed properly from the master list
 					// We do this after iteration to avoid runtimes
@@ -561,7 +610,7 @@ namespace Ceres.PartInspector
 				foreach (var obj in toRemove)
 				{
 					PrintToConsole("Removing null tracker…", ConsoleMessageScope.NewTrackers);
-					_allTrackers.Remove(obj);
+					_allTrackerInstances.Remove(obj);
 				}
 			}
 		}
@@ -581,15 +630,15 @@ namespace Ceres.PartInspector
 			if (lookedObj != null)
 			{
 				PrintToConsole($"Checking if valid object: {lookedObj.name}", ConsoleMessageScope.Verification);
-				if (_blacklistedObjects.Contains(lookedObj)) 
+				if (_blacklistedObjects.Contains(lookedObj))
 				{
 					PrintToConsole("-> Object is blacklisted. Returning.", ConsoleMessageScope.Verification);
 					return;
 				}
-				if (_allTrackers.Keys.Contains(lookedObj))
+				if (_allTrackerInstances.Keys.Contains(lookedObj))
 				{
 					PrintToConsole("-> Object already has a tracker. Returning.", ConsoleMessageScope.Verification);
-					BaseTracker wt = _allTrackers[lookedObj];
+					BaseTracker wt = _allTrackerInstances[lookedObj];
 					if (wt.DisplayText != string.Empty)
 						_displayGui.Value = wt.DisplayText;
 					return;
@@ -639,18 +688,18 @@ namespace Ceres.PartInspector
 				// if it's not, this isn't something with a tracker -- back out
 				if (tryPartLookup)
 				{
-					PrintToConsole("-> Now checking for name in _partNames.", ConsoleMessageScope.Verification);
-					if (!_partNames.Keys.Contains(lookedObj.name))
+					PrintToConsole("-> Now checking for name in PartNames.", ConsoleMessageScope.Verification);
+					if (!ObjectDatabase.Keys.Contains(lookedObj.name))
 					{
 						PrintToConsole("--> Part name is not present. Doing a final check on the parent object…", ConsoleMessageScope.Verification);
-						if (!lookedObj.transform.parent?.gameObject || !_partNames.Keys.Contains(lookedObj.transform.parent.gameObject.name))
+						if (!lookedObj.transform.parent?.gameObject || !ObjectDatabase.Keys.Contains(lookedObj.transform.parent.gameObject.name))
 						{
 							PrintToConsole("--> No trackable parent object. Returning.", ConsoleMessageScope.Verification);
 							return;
 						}
 						else
 						{
-							if (_allTrackers.Keys.Contains(lookedObj.transform.parent.gameObject))
+							if (_allTrackerInstances.Keys.Contains(lookedObj.transform.parent.gameObject))
 							{
 								PrintToConsole("--> Parent object was found but already tracked. Returning.", ConsoleMessageScope.Verification);
 								return;
@@ -662,7 +711,7 @@ namespace Ceres.PartInspector
 				}
 
 				PrintToConsole($"Detected a valid object named \"{lookedObj.name}\". Adding tracker.", ConsoleMessageScope.NewTrackers);
-				CreateTrackerForPart(lookedObj, _partNames.ContainsKey(lookedObj.name) ? _partNames[lookedObj.name] : null);
+				CreateTrackerForPart(lookedObj, ObjectDatabase.ContainsKey(lookedObj.name) ? ObjectDatabase[lookedObj.name] : null);
 				//CreateTrackerForPart(lookedObj, trackerTypeOverride ?? (_partNames.ContainsKey(lookedObj.name) ? _partNames[lookedObj.name] : null));
 			}
 		}
@@ -703,7 +752,7 @@ namespace Ceres.PartInspector
 			}
 			PrintToConsole("-> Viewing data…", ConsoleMessageScope.BoltInspection);
 			var boltVals = _curBolt.Value.GetPlayMaker("Screw")?.FsmVariables;
-			float? boltSize = IsMSC ? _curBoltSizeMSC.Value : boltVals?.GetFsmFloat("Boltsize").Value;
+			float? boltSize = IsMSC ? _mscCurBoltSize.Value : boltVals?.GetFsmFloat("Boltsize").Value;
 			if (boltSize == null)
 			{
 				PrintToConsole("…Bolt size is null. Returning.", ConsoleMessageScope.BoltInspection);
@@ -793,15 +842,6 @@ namespace Ceres.PartInspector
 		private void RefreshDisplayGUI() => _displayGui = SettingDisplayLocation.GetSelectedItemIndex() == 0 ? _pickedPartGui : _interactionGui;
 
 		/// <summary>
-		/// Simple wrapper to adjust relevant values when update frequency settings are changed.
-		/// </summary>
-		private void RebuildDisplays()
-		{
-			_timeSinceLastUpdate = 0f;
-			_timeBetweenUpdates = SettingTextUpdateFrequency.GetValue();
-		}
-
-		/// <summary>
 		/// Big monolith of a function that parses information about an object and its tracker type and then creates a new tracker for that object based on the info provided.
 		/// Every new tracker type should have handling implemented into this function.
 		/// See docs on the <c>trackerInfo</c> param for important info.
@@ -829,13 +869,19 @@ namespace Ceres.PartInspector
 				switch (tt)
 				{
 					case TrackerType.PartCondition:
+					case TrackerType.Gearbox:
 						if (!SettingShowCarPartCondition.GetValue())
 							break;
 						if (!IsMSC) // MWC follows a standardized format for its parts that wear down -- just entrust the setup to the tracker itsef
 							newTrackerType = typeof(PartConditionTracker);
 						else // MSC, however, has a whole bunch of finagling that needs to be done, so we do the heavy lifting here
 						{
-							PartConditionTracker swt = gameObj.AddComponent<PartConditionTracker>();
+							bool isGearbox = tt == TrackerType.Gearbox; // this line is super evil and I hate it. oh the joys of tech debt
+							PartConditionTracker swt;
+							if (!isGearbox)
+								swt = gameObj.AddComponent<PartConditionTracker>();
+							else
+								swt = gameObj.AddComponent<GearboxTracker>();
 							FsmVariables dbInfo = null;
 							foreach (PlayMakerFSM fsm in _mscMotorDb)
 							{
@@ -847,7 +893,7 @@ namespace Ceres.PartInspector
 								}
 							}
 							bwt = swt;
-							swt.Initialize(gameObj.name, _mscSatsumaVars, "Wear" + _partNames[gameObj.name], dbInfo);
+							swt.Initialize(gameObj.name, _mscSatsumaVars, "Wear" + (!isGearbox ? ObjectDatabase[gameObj.name] : "Gearbox"), dbInfo);
 							break;
 						}
 						break;
@@ -980,7 +1026,7 @@ namespace Ceres.PartInspector
 				if (bwt != null)
 				{
 					bwt.BuildDisplayText();
-					_allTrackers.Add(gameObj, bwt);
+					_allTrackerInstances.Add(gameObj, bwt);
 					PrintToConsole($"A tracker component of type {bwt.GetType()} was added to an object named \"{gameObj.name}\".", ConsoleMessageScope.NewTrackers);
 				}
 			}
@@ -993,7 +1039,7 @@ namespace Ceres.PartInspector
 				{
 					bwt.enabled = false;
 					GameObject.Destroy(bwt);
-					_allTrackers.Remove(gameObj);
+					_allTrackerInstances.Remove(gameObj);
 				}
 				throw e;
 			}

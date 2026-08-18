@@ -9,7 +9,8 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 ### TBD, 2026
 #### Version 0.2.0
 * Unified the MSC and MWC versions of the mod. The same file should now work on both games, and adjust accordingly to match!
-	* If you're playing MWC, then there won't be many differences here. If you're playing MSC, however, there are a lot of changes and new features, so make sure you go through your settings thoroughly
+	* If you're playing MWC, then there won't be many differences here. If you're playing MSC, however, there are a lot of changes and new features, so make sure you go through your settings thoroughly.
+* Gearboxes now display their final drive ratio when inspected.
 * Added a new tracker type, disabled by default, that shows the current freshness of food that can spoil.
 * When the mod fails to set up a new tracker, it will try to handle the failure more gracefully and stop trying to add trackers to that object instead of repeatedly failing until the mod disables itself due to error spam. This should allow you to continue playing even if you run into issues, though mileage may vary.
 * **MSC only:** Tentative compatibility with the Spare Parts mod.
