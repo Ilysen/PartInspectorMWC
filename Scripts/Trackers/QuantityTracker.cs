@@ -17,25 +17,19 @@ namespace Ceres.PartInspector.Trackers
 			_quantity = fsmVars.GetFsmInt("Quantity");
 		}
 
-		// using Unity's update here isn't super clean, but eh. if it ain't broke
-		private void Update()
-		{
-			var qty = _quantity.Value;
-			if (qty != _cachedQty)
-			{
-				if (qty == 0 && _cachedQty != 0)
-					DisplayText = "Empty";
-				else
-					BuildDisplayText();
-			}
-			_cachedQty = qty;
-		}
-
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{
 			var qty = _quantity.Value;
-			DisplayText = qty == 0 ? string.Empty : $"{InitialName} - {_quantity.Value} left";
+			// we do this for a specific reason!
+			// the game changes the object's name to "Empty" when it runs out of stuff, and if we just use the string.Empty part right away,
+			// the "1 left" thing will get stuck on the screen. doing this here means that the name will appear to change correctly,
+			// after which point we immediately use string.Empty as normal, creating the illusion that it adapted to the new name seamlessly
+			if (qty == 0 && _cachedQty != 0)
+				DisplayText = "Empty";
+			else
+				DisplayText = qty == 0 ? string.Empty : $"{InitialName} - {_quantity.Value} left";
+			_cachedQty = qty;
 		}
 	}
 }

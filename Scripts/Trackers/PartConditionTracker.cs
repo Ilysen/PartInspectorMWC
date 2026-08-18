@@ -9,7 +9,6 @@ namespace Ceres.PartInspector.Trackers
 	internal class PartConditionTracker : BaseTracker
 	{
 		private FsmFloat _wear;
-		private float _cachedWear;
 		private FsmBool _mscIsDamaged;
 
 		internal virtual string GetPartName => InitialName;
@@ -26,19 +25,6 @@ namespace Ceres.PartInspector.Trackers
 			}
 			else
 				_wear = FsmVariables.GetFsmFloat("Wear");
-		}
-
-		// Spare Parts compat: force an early refresh if the wear value changes
-		// This is unnecessary in regular play, but because SP changes the part wear when you look between spares and regular parts,
-		// We need it here
-		private void Update()
-		{
-			if (!PartInspectorScript.IsModLoaded_SpareParts)
-				return;
-			var wear = _wear.Value;
-			if (wear != _cachedWear)
-				BuildDisplayText();
-			_cachedWear = wear;
 		}
 
 		/// <inheritdoc/>

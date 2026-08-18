@@ -106,13 +106,12 @@ namespace Ceres.PartInspector
 				new string[] { "Show exact information", "Show general description", "Show broken/not broken" }, 1);
 			SettingItemDisplayPrecision = Settings.AddDropDownList(nameof(SettingItemDisplayPrecision), "Item inspection precision",
 				new string[] { "Show exact information", "Show general description" }, 1);
-			SettingBoltSizePrecision = Settings.AddDropDownList(nameof(SettingBoltSizePrecision), "Bolt size precision",
-				new string[] { "Show exact information", "Show general description", "Show too big/too small only" }, 1,
-				() => _boltSizeMode = SettingBoltSizePrecision.GetSelectedItemIndex());
-			SettingTextUpdateFrequency = Settings.AddSlider(nameof(SettingTextUpdateFrequency), "Text update frequency<color=yellow>*</color>",
-				1, 10, 10, () => _timeBetweenUpdates = SettingTextUpdateFrequency.GetValue());
-			Settings.AddText("<color=yellow>* Lowering this might have an impact on performance. " +
-				"Only use it if you find the default rate to be too sluggish.</color>");
+			if (ModLoader.CurrentGame == Game.MyWinterCar)
+			{
+				SettingBoltSizePrecision = Settings.AddDropDownList(nameof(SettingBoltSizePrecision), "Bolt size precision",
+					new string[] { "Show exact information", "Show general description", "Show too big/too small only" }, 1,
+					() => _boltSizeMode = SettingBoltSizePrecision.GetSelectedItemIndex());
+			}
 
 			Settings.AddHeader("Logging", headingColor, Color.white);
 			Settings.AddText("If you're running into bugs, these settings will put extra info into your log that'll help the author diagnose the issues. Keep them all off for regular play, but please turn on the relevant ones when submitting a bug report!");
@@ -130,6 +129,9 @@ namespace Ceres.PartInspector
 				SettingShowBoltSizes = Settings.AddCheckBox(nameof(SettingShowBoltSizes), "Show bolt sizes", false,
 					() => _showBoltSizes = SettingShowBoltSizes.GetValue());
 				Settings.AddText("When in tool mode, shows the size of whatever bolt you're looking at.");
+				SettingBoltSizePrecision = Settings.AddDropDownList(nameof(SettingBoltSizePrecision), "Bolt size precision",
+					new string[] { "Show exact information", "Show general description", "Show too big/too small only" }, 1,
+					() => _boltSizeMode = SettingBoltSizePrecision.GetSelectedItemIndex());
 			}
 			SettingShowValveClearance = Settings.AddCheckBox(nameof(SettingShowValveClearance), "Show valve lash", false,
 				() => _showValveClearance = SettingShowValveClearance.GetValue());
@@ -178,13 +180,6 @@ namespace Ceres.PartInspector
 		/// </summary>
 		private HashSet<GameObject> _blacklistedObjects;
 
-		/// <summary>
-		/// To save performance, and because parts are unlikely to rapidly change condition in a given time period, display names only update every now and then, at timed intervals. This value tracks when the part last updated, in seconds.
-		/// <br/><br/>
-		/// Certain trackers, like fullness trackers, will force early updates if they detect changes in their item's state. This keeps them nice and responsive.
-		/// </summary>
-		private float _timeSinceLastUpdate = 0f;
-
 			#region Settings
 		/// <summary>
 		/// Cached reference to the FSM used to track the object the player is currently looking at.
@@ -212,11 +207,6 @@ namespace Ceres.PartInspector
 		/// Cached reference to the value of <see cref="SettingBoltSizePrecision"/>.
 		/// </summary>
 		private int _boltSizeMode = 3;
-
-		/// <summary>
-		/// Cached reference to the value of <see cref="SettingTextUpdateFrequency"/>.
-		/// </summary>
-		private float _timeBetweenUpdates = 10f;
 		#endregion
 
 			#region Bolt inspection
@@ -565,7 +555,6 @@ namespace Ceres.PartInspector
 				PrintToConsole("Finalizing setup…", ConsoleMessageScope.Core);
 				_allTrackerInstances = new Dictionary<GameObject, BaseTracker>();
 				_blacklistedObjects = new HashSet<GameObject>();
-				_timeBetweenUpdates = SettingTextUpdateFrequency.GetValue();
 
 				stopwatch.Stop();
 				PrintToConsole($"{Name} initialized after {stopwatch.Elapsed.Milliseconds} ms!", ConsoleMessageScope.Core);
@@ -579,40 +568,8 @@ namespace Ceres.PartInspector
 
 		private void Mod_OnUpdate()
 		{
-			UpdateDisplays();
 			UpdateInspection();
 			UpdateBolts();
-		}
-
-		/// <summary>
-		/// Updates the display text of all existing trackers every <see cref="_timeBetweenUpdates"/> seconds.<br/>
-		/// Also removes entries in <see cref="_allTrackerInstances"/> that have deleted game objects.
-		/// </summary>
-		private void UpdateDisplays()
-		{
-			_timeSinceLastUpdate += Time.deltaTime;
-			if (_timeSinceLastUpdate >= _timeBetweenUpdates)
-			{
-				_timeSinceLastUpdate = 0f;
-				List<GameObject> toRemove = new List<GameObject>();
-				foreach (KeyValuePair<GameObject, BaseTracker> kvp in _allTrackerInstances)
-				{
-					// Ensure that destroyed objects have their trackers disposed properly from the master list
-					// We do this after iteration to avoid runtimes
-					if (kvp.Key == null)
-					{
-						PrintToConsole($"Found a tracker of type {kvp.Value.GetType()} with a null object. Adding to removal queue.", ConsoleMessageScope.NewTrackers);
-						toRemove.Add(kvp.Key);
-						continue;
-					}
-					kvp.Value.BuildDisplayText();
-				}
-				foreach (var obj in toRemove)
-				{
-					PrintToConsole("Removing null tracker…", ConsoleMessageScope.NewTrackers);
-					_allTrackerInstances.Remove(obj);
-				}
-			}
 		}
 
 		/// <summary>
@@ -639,6 +596,7 @@ namespace Ceres.PartInspector
 				{
 					PrintToConsole("-> Object already has a tracker. Returning.", ConsoleMessageScope.Verification);
 					BaseTracker wt = _allTrackerInstances[lookedObj];
+					wt.BuildDisplayText();
 					if (wt.DisplayText != string.Empty)
 						_displayGui.Value = wt.DisplayText;
 					return;

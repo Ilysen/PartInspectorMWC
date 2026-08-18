@@ -67,61 +67,42 @@ namespace Ceres.PartInspector.Trackers
 		}
 
 		/// <inheritdoc/>
-		internal override float GetWearPercentage() => (GetFullnessLevel() / _maxFullness) * 100;
-
-		/// <summary>
-		/// Gets the remaining fluid for this tracker.
-		/// </summary>
-		private float GetFullnessLevel() => _fullness.Value;
+		internal override float GetWearPercentage() => (_fullness.Value / _maxFullness) * 100;
 
 		/// <summary>
 		/// How full this tracker was last frame.
-		/// If current fullness does not equal this value, we refresh the tracker's display text.
 		/// </summary>
 		private float _cachedFullnessLevel;
-
-		// you thought I was a bespoke class, but it was me, MonoBehavior!
-		private void Update()
-		{
-			// we do this so that the text updates in realtime while we're pouring a liquid, basically
-			// skipping the usual refresh period makes things feel a lot snappier
-			var curFullness = GetFullnessLevel();
-			if (curFullness != _cachedFullnessLevel)
-			{
-				if (curFullness <= _minFullness && _cachedFullnessLevel > _minFullness)
-					DisplayText = "Empty";
-				else
-					BuildDisplayText();
-			}
-			_cachedFullnessLevel = curFullness;
-		}
 
 		/// <inheritdoc/>
 		internal override void BuildDisplayText()
 		{
-			if (GetFullnessLevel() <= _minFullness)
+			if (_fullness.Value <= _minFullness)
 			{
-				DisplayText = string.Empty;
+				if (_cachedFullnessLevel > _minFullness)
+					DisplayText = "Empty";
+				else
+					DisplayText = string.Empty;
 				return;
 			}
-			float fullnessLevel = GetWearPercentage();
+			float percentFull = GetWearPercentage();
 			string newText;
 			switch (PartInspectorScript.SettingItemDisplayPrecision.GetSelectedItemIndex())
 			{
 				case 1: // General description
-					if (fullnessLevel >= 100)
+					if (percentFull >= 100)
 						newText = "full";
-					else if (fullnessLevel >= 90)
+					else if (percentFull >= 90)
 						newText = "nearly full";
-					else if (fullnessLevel >= 75)
+					else if (percentFull >= 75)
 						newText = "three-quarters full";
-					else if (fullnessLevel >= 51)
+					else if (percentFull >= 51)
 						newText = "over half full";
-					else if (fullnessLevel < 51 && fullnessLevel > 49)
+					else if (percentFull < 51 && percentFull > 49)
 						newText = "exactly half full, nice!";
-					else if (fullnessLevel >= 25)
+					else if (percentFull >= 25)
 						newText = "under half full";
-					else if (fullnessLevel >= 10)
+					else if (percentFull >= 10)
 						newText = "one quarter full";
 					else
 						newText = "nearly empty";
@@ -129,19 +110,20 @@ namespace Ceres.PartInspector.Trackers
 				default: // Exact percentage
 					if (_displayAsFluid)
 					{
-						float ml = Mathf.RoundToInt(GetFullnessLevel() * 1000);
+						float ml = Mathf.RoundToInt(_fullness.Value * 1000);
 						if (ml >= 1000) // 1 liter or above - truncate value to read something like "1.2 L"
-							newText = $"{Math.Round(GetFullnessLevel(), 2)} L";
+							newText = $"{Math.Round(_fullness.Value, 2)} L";
 						else // Below 1 liter - display as exact mL value, like "372 mL"
 							newText = $"{ml} mL";
 					}
 					else
 					{
-						newText = $"{Math.Round(fullnessLevel)}% full";
+						newText = $"{Math.Round(percentFull)}% full";
 					}
 					break;
 			}
 			DisplayText = $"{InitialName} - {newText}";
+			_cachedFullnessLevel = _fullness.Value;
 		}
 	}
 }
