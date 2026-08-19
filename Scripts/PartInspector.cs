@@ -1,6 +1,7 @@
 ﻿using Ceres.PartInspector.Trackers;
 using HutongGames.PlayMaker;
 using MSCLoader;
+using Spare_Parts;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -585,7 +586,7 @@ namespace Ceres.PartInspector
 				// MWC conveniently generalizes this across all of its parts; MSC, however, does not
 				// as a result, for MSC we *always* check part name, but for MWC we skip it if we can find the relevant data
 				bool tryPartLookup = true;
-				//TrackerType? trackerTypeOverride = null;
+				TrackerType? trackerTypeOverride = null;
 
 #warning TODO: generalize this as a heuristic
 				if (!IsMSC)
@@ -614,12 +615,12 @@ namespace Ceres.PartInspector
 					}
 				}
 
-				/*if (IsModLoaded_SpareParts && lookedObj.GetComponent<SparePart>() != null)
+				if (IsModLoaded_SpareParts && lookedObj.GetComponent<SparePart>() != null)
 				{
 					PrintToConsole("-> Part is a spare part from Spare Parts. Continuing.", ConsoleMessageScope.Verification);
 					tryPartLookup = false;
 					trackerTypeOverride = TrackerType.MOD_SparePart;
-				}*/
+				}
 
 				// second: look up the object's name in the part name list
 				// if it's not, this isn't something with a tracker -- back out
@@ -648,8 +649,8 @@ namespace Ceres.PartInspector
 				}
 
 				PrintToConsole($"Detected a valid object named \"{lookedObj.name}\". Adding tracker.", ConsoleMessageScope.NewTrackers);
-				CreateTrackerForPart(lookedObj, ObjectDatabase.ContainsKey(lookedObj.name) ? ObjectDatabase[lookedObj.name] : null);
-				//CreateTrackerForPart(lookedObj, trackerTypeOverride ?? (_ObjectDatabase.ContainsKey(lookedObj.name) ? _ObjectDatabase[lookedObj.name] : null));
+				//CreateTrackerForPart(lookedObj, ObjectDatabase.ContainsKey(lookedObj.name) ? ObjectDatabase[lookedObj.name] : null);
+				CreateTrackerForPart(lookedObj, trackerTypeOverride ?? (ObjectDatabase.ContainsKey(lookedObj.name) ? ObjectDatabase[lookedObj.name] : null));
 			}
 		}
 
@@ -951,7 +952,7 @@ namespace Ceres.PartInspector
 					#endregion
 
 
-					/*#region Mod integration
+					#region Mod integration
 					case TrackerType.MOD_SparePart:
 						if (!IsMSC || !SettingShowCarPartCondition.GetValue())
 							return;
@@ -959,7 +960,7 @@ namespace Ceres.PartInspector
 						bwt = spapt;
 						spapt.Initialize(gameObj.name, null);
 						break;
-					#endregion*/
+					#endregion
 
 					default:
 						ModConsole.Error($"Part Inspector attempted to initialize with an invalid tracker type: {tt}");
