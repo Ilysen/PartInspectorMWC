@@ -4,20 +4,20 @@ This is a mod for My Summer Car and My Winter Car that lets you look at car part
 
 Part Inspector is licensed under the [GNU General Public License v3](http://www.gnu.org/licenses/agpl.html), which can be found in full in [LICENSE.md](LICENSE.md).
 
-# TODO LIST BEFORE NEXT RELEASE
-* Finalize lash valve stuff.
-* Decide whether or not to cut bolt inspection for MSC.
-
 ## Changelog
 
-### TBD, 2026
+### 25 August, 2026
 #### Version 0.2.0
 * Unified the MSC and MWC versions of the mod. The same file should now work on both games, and adjust accordingly to match!
-	* If you're playing MWC, then there won't be many differences here. If you're playing MSC, however, there are a lot of changes and new features, so make sure you go through your settings thoroughly.
-* Gearboxes now display their final drive ratio when inspected.
+	* If you're playing MWC, then there won't be many differences here. If you're playing MSC, however, there are a lot of changes and new features, so make sure you go through your settings thoroughly. You should find the mod to be overall much more stable and responsive than before!
+* Implemented several new information displays related to part tuning, each of which can be toggled independently and will display when looking at that part's adjustment screw/bolt/whatever with the correct tool:
+	* **Rocker valve:** Current valve lash. (This was previously an experimental feature, but is now generally available.)
+	* **Rally suspension:** Current bump and rebound. This can already be tracked via ticks from max/min, but this makes it easier to set and remember specific values.
+	* **Wheel alignment:** What it says on the tin. Because it's currently a little unstable, this is in the Experimental tab rather than the Tuning tab.
 * Added a new tracker type, disabled by default, that shows the current freshness of food that can spoil.
 * When the mod fails to set up a new tracker, it will try to handle the failure more gracefully and stop trying to add trackers to that object instead of repeatedly failing until the mod disables itself due to error spam. This should allow you to continue playing even if you run into issues, though mileage may vary.
 * **MSC only:** Tentative compatibility with the Spare Parts mod.
+* **MSC only:** Gearboxes now display their final drive ratio. This will come to MWC at some point in the future, hopefully.
 
 ### 1 August, 2026
 #### Version 0.1.6

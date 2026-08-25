@@ -46,12 +46,12 @@ namespace Ceres.PartInspector.Trackers
 						newText = "Moldy";
 					else if (freshnessPercent <= 50)
 						newText = "Stale";
+					DisplayText = $"{(newText != null ? $"{newText} " : "")}{InitialName}";
 					break;
 				default: // Exact percentage
-					newText = $"{Mathf.RoundToInt(freshnessPercent)}% fresh";
+					DisplayText = $"{InitialName} ({Mathf.RoundToInt(freshnessPercent)}% fresh)";
 					break;
 			}
-			DisplayText = $"{(newText != null ? $"{newText} " : "")}{InitialName}";
 		}
 
 		internal override float GetPercentage() => (_curFreshness.Value / _maxFreshness) * 100;

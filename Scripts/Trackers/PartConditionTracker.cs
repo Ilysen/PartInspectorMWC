@@ -40,7 +40,7 @@ namespace Ceres.PartInspector.Trackers
 				effectiveWear = 0;
 			else
 				effectiveWear = _wear.Value;
-			DisplayText = $"{InitialName} - {GetDescriptor(effectiveWear)}";
+			DisplayText = $"{GetPartName} - {GetDescriptor(effectiveWear)}";
 		}
 
 		internal static string GetDescriptor(float WearVal)
