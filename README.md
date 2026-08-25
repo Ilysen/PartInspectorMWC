@@ -7,9 +7,10 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 ## Changelog
 
 ### 25 August, 2026
-#### Version 0.2.0
+#### Version 2.0
 * Unified the MSC and MWC versions of the mod. The same file should now work on both games, and adjust accordingly to match!
 	* If you're playing MWC, then there won't be many differences here. If you're playing MSC, however, there are a lot of changes and new features, so make sure you go through your settings thoroughly. You should find the mod to be overall much more stable and responsive than before!
+	* I usually use zerover, but because the MSC version was at 1.X, I'm gonna make an exception to my rule and just do 2.0 with this one.
 * Implemented several new information displays related to part tuning, each of which can be toggled independently and will display when looking at that part's adjustment screw/bolt/whatever with the correct tool:
 	* **Rocker valve:** Current valve lash. (This was previously an experimental feature, but is now generally available.)
 	* **Rally suspension:** Current bump and rebound. This can already be tracked via ticks from max/min, but this makes it easier to set and remember specific values.
