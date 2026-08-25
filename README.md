@@ -7,6 +7,9 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 ## Changelog
 
 ### 25 August, 2026
+#### Version 2.0.1
+* Emergency hotfix to disable Spare Parts integration until I can find out how to fix a crash bug when loading the mod without it. Oops.
+
 #### Version 2.0
 * Unified the MSC and MWC versions of the mod. The same file should now work on both games, and adjust accordingly to match!
 	* If you're playing MWC, then there won't be many differences here. If you're playing MSC, however, there are a lot of changes and new features, so make sure you go through your settings thoroughly. You should find the mod to be overall much more stable and responsive than before!
