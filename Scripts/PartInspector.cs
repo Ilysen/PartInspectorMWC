@@ -1,7 +1,7 @@
 ﻿using Ceres.PartInspector.Trackers;
 using HutongGames.PlayMaker;
 using MSCLoader;
-//using Spare_Parts;
+using Spare_Parts;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -31,7 +31,7 @@ namespace Ceres.PartInspector
 		public override string ID => "Ceres_PartInspector";
 		public override string Name => "Part Inspector";
 		public override string Author => "Ceres et al.";
-		public override string Version => "2.0.1";
+		public override string Version => "2.0.2";
 		public override string Description => "Inspect your parts! (And containers and filters and bolts and…)";
 		public override Game SupportedGames => Game.MySummerCar_And_MyWinterCar;
 
@@ -542,11 +542,11 @@ namespace Ceres.PartInspector
 				stopwatch.Start();
 
 				int modsWithCompat = 0; // so the list could theoretically be expanded, though I don't think it's likely atm :P
-				/*if (IsMSC && ModLoader.IsModPresent("Spare_Parts"))
+				if (IsMSC && ModLoader.IsModPresent("Spare_Parts"))
 				{
 					modsWithCompat++;
 					IsModLoaded_SpareParts = true;
-				}*/
+				}
 
 				PrintToConsole($"{Name} version {Version} is now initializing for My {(IsMSC ? "Summer" : "Winter")} car.", ConsoleMessageScope.Core);
 				if (modsWithCompat > 0)
@@ -681,12 +681,12 @@ namespace Ceres.PartInspector
 					}
 				}
 
-				/*if (IsModLoaded_SpareParts && lookedObj.GetComponent<SparePart>() != null)
+				if (IsModLoaded_SpareParts && IsSparePart(lookedObj))
 				{
 					PrintToConsole("-> Part is a spare part from Spare Parts. Continuing.", ConsoleMessageScope.Verification);
 					tryPartLookup = false;
 					trackerTypeOverride = TrackerType.MOD_SparePart;
-				}*/
+				}
 
 				// second: look up the object's name in the part name list
 				// if it's not, this isn't something with a tracker -- back out
@@ -717,6 +717,14 @@ namespace Ceres.PartInspector
 				PrintToConsole($"Detected a valid object named \"{lookedObj.name}\". Adding tracker.", ConsoleMessageScope.NewTrackers);
 				//CreateTrackerForPart(lookedObj, ObjectDatabase.ContainsKey(lookedObj.name) ? ObjectDatabase[lookedObj.name] : null);
 				CreateTrackerForPart(lookedObj, trackerTypeOverride ?? (ObjectDatabase.ContainsKey(lookedObj.name) ? ObjectDatabase[lookedObj.name] : null));
+			}
+
+			// having this as a local function lets us get around having to keep the SparePart type out of the method itself
+			// (otherwise it throws errors if the mod isn't loaded), while still benefitting from GetComponent finding subtype comps types too >:)
+			// this will throw errors if spare parts isn't loaded so, yknow, don't do that
+			bool IsSparePart(GameObject go)
+			{
+				return go.GetComponent<SparePart>() != null;
 			}
 		}
 
@@ -1098,13 +1106,13 @@ namespace Ceres.PartInspector
 
 
 					#region Mod integration
-					/*case TrackerType.MOD_SparePart:
+					case TrackerType.MOD_SparePart:
 						if (!IsMSC || !SettingShowCarPartCondition.GetValue())
 							return;
 						MOD_SparePartTracker spapt = gameObj.AddComponent<MOD_SparePartTracker>();
 						bwt = spapt;
 						spapt.Initialize(gameObj.name, null);
-						break;*/
+						break;
 					#endregion
 
 					default:

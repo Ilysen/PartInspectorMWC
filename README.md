@@ -7,6 +7,9 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 ## Changelog
 
 ### 25 August, 2026
+#### Version 2.0.2
+* Re-enabled Spare Parts integration, hopefully this time for good.
+
 #### Version 2.0.1
 * Emergency hotfix to disable Spare Parts integration until I can find out how to fix a crash bug when loading the mod without it. Oops.
 

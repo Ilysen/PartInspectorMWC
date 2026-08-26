@@ -1,4 +1,4 @@
-﻿/*using HutongGames.PlayMaker;
+﻿using HutongGames.PlayMaker;
 using MSCLoader;
 using Spare_Parts;
 using UnityEngine;
@@ -10,14 +10,33 @@ namespace Ceres.PartInspector.Trackers
 	/// </summary>
 	internal class MOD_SparePartTracker : BaseTracker
 	{
-		private SparePart _partComp;
-		private SpareGearbox _gearbox;
+		// noting this down here for myself since I couldn't find good resources online:
+		//
+		// type declarations CANNOT be used from other assemblies unless they're mandatory dependencies,
+		// because they'll throw errors for anyone who doesn't have the mod installed.
+		// to avoid this, we just store these as objects, and then typecast when we use them.
+		//
+		// this is because the logic itself will only fire during runtime, and this tracker type is only initialized
+		// when Spare Parts is loaded.
+		//
+		// end result: it's safe to use references in runtime, but *not* in compile time
+		// (xml docs are, of course, fine)
+
+		/// <summary>
+		/// Before use, typecast to <c><see cref="SparePart"/></c>.
+		/// </summary>
+		private object _partComp;
+
+		/// <summary>
+		/// Before use, typecast to <c><see cref="SpareGearbox"/></c>.
+		/// </summary>
+		private object _gearbox;
 
 		/// <summary>
 		/// Getter function for this object's <c><see cref="SparePart"/></c> component.
 		/// Will automatically fetch if null, and throw an error if none is on the object.
 		/// </summary>
-		private SparePart PART_COMP
+		private object PART_COMP
 		{
 			get
 			{
@@ -53,11 +72,13 @@ namespace Ceres.PartInspector.Trackers
 		internal override void BuildDisplayText()
 		{
 			float effectiveWear;
-			if (PART_COMP.damaged)
+			SparePart partComp = (SparePart)PART_COMP;
+			SpareGearbox gearbox = (SpareGearbox)_gearbox;
+			if (partComp.damaged)
 				effectiveWear = 0;
 			else
-				effectiveWear = PART_COMP.wear;
-			DisplayText = $"{InitialName}{(_gearbox != null ? $" (Ratio {_gearbox.finalDriveRatio})" : "")} - {GetDescriptor(effectiveWear)}";
+				effectiveWear = partComp.wear;
+			DisplayText = $"{InitialName}{(gearbox != null ? $" (Ratio {gearbox.finalDriveRatio})" : "")} - {GetDescriptor(effectiveWear)}";
 		}
 
 		internal static string GetDescriptor(float WearVal)
@@ -101,4 +122,3 @@ namespace Ceres.PartInspector.Trackers
 		}
 	}
 }
-*/
