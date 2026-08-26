@@ -178,7 +178,7 @@ namespace Ceres.PartInspector
 				if (_isMsc == null)
 				{
 					_isMsc = ModLoader.CurrentGame == Game.MySummerCar;
-					PrintToConsole($"Detected current game as My {((bool)_isMsc ? "Winter" : "Summer")} Car. If this is wrong, report it as a bug.", ConsoleMessageScope.Core);
+					PrintToConsole($"Detected current game as My {((bool)_isMsc ? "Summer" : "Winter")} Car. If this is wrong, report it as a bug.", ConsoleMessageScope.Core);
 				}
 				if (_isMsc == null)
 				{
