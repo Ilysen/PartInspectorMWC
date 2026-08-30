@@ -67,11 +67,11 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Scripts\Trackers\GearboxTracker.cs" />
     <Compile Include="Scripts\Trackers\Mods\SparePartTracker.cs" />
-    <Compile Include="Scripts\Trackers\MSC\SparkPlugTracker.cs" />
     <Compile Include="Scripts\Trackers\MWC\VariantAndWearTracker.cs" />
     <Compile Include="Scripts\Trackers\MWC\VariantTracker.cs" />
     <Compile Include="Scripts\Trackers\FullnessTracker.cs" />
     <Compile Include="Scripts\Trackers\FreshnessTracker.cs" />
+    <Compile Include="Scripts\Trackers\SingleValueTracker.cs" />
     <Compile Include="Scripts\Trackers\OilFilterTracker.cs" />
     <Compile Include="Scripts\Trackers\QuantityTracker.cs" />
     <Compile Include="Scripts\Trackers\IntactOrBrokenTracker.cs" />

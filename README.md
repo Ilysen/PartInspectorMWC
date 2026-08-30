@@ -6,6 +6,21 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 
 ## Changelog
 
+### TBD
+#### Version 2.0.3
+* Adjustments related to freshness trackers:
+	* Now correctly use item precision rather than part precision.
+	* Now track moose meat and grilled pike.
+	* "General description" thresholds adjusted:
+		* Fresh: 100% to 70%
+		* Good: 70% to 50%
+		* Fine: 50% to 30%
+		* Stale: 30% to 10%
+		* Moldy: 10% and below
+* The "exact information" readout for car parts is now labeled as "% condition", instead of just "%".
+* Fixed alternator belts having no condition readout.
+* Internal refactor to handling for spark plugs, alternator belts, and oil filters. Functionality should be unchanged, but let me know if there's issues.
+
 ### 25 August, 2026
 #### Version 2.0.2
 * Re-enabled Spare Parts integration, hopefully this time for good.

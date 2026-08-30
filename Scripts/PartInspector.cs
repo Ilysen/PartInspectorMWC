@@ -9,6 +9,7 @@ using System.Linq;
 using UnityEngine;
 using static Ceres.PartInspector.Trackers.FreshnessTracker;
 using static Ceres.PartInspector.Trackers.FullnessTracker;
+using static Ceres.PartInspector.Trackers.SingleValueTracker;
 using static Ceres.PartInspector.Trackers.VariantTracker;
 
 namespace Ceres.PartInspector
@@ -31,7 +32,7 @@ namespace Ceres.PartInspector
 		public override string ID => "Ceres_PartInspector";
 		public override string Name => "Part Inspector";
 		public override string Author => "Ceres et al.";
-		public override string Version => "2.0.2";
+		public override string Version => "2.0.3";
 		public override string Description => "Inspect your parts! (And containers and filters and bolts and…)";
 		public override Game SupportedGames => Game.MySummerCar_And_MyWinterCar;
 
@@ -363,11 +364,13 @@ namespace Ceres.PartInspector
 			Freshness,
 
 			/// <summary>
-			/// <b>MSC only:</b> Spark plugs in this game function like regular car parts do in MWC, and so they need their own tracker type to handle it.
-			/// TODO: Generalize this.
+			/// Catch-all for items that track a specific value (oil filters, spark plugs, etc) but don't have any more complex behavior than that,
+			/// allowing us to generalize them with one tracker type and appropriate data.<br/>
+			/// <b>Associated data struct:</b> <c><see cref="SingleValueInfo"/></c>
 			/// </summary>
-			MSC_SparkPlug,
+			SingleValue,
 
+			#region MWC-exclusive trackers
 			/// <summary>
 			/// <b>MWC only:</b> Used for items with multiple variants, like grilles and mufflers.
 			/// </summary>
@@ -377,11 +380,14 @@ namespace Ceres.PartInspector
 			/// <b>MWC only:</b> Combines the behavior of the <c><see cref="MWC_Variant"/></c> and <c><see cref="PartCondition"/></c> trackers.
 			/// </summary>
 			MWC_VariantAndWear,
+			#endregion
 
+			#region Mod integration trackers
 			/// <summary>
 			/// <b>Spare Parts mod:</b> Tracks part condition for spare parts, among other things depending on subtype.
 			/// </summary>
 			MOD_SparePart,
+			#endregion
 		}
 
 		/// <summary>
@@ -405,10 +411,13 @@ namespace Ceres.PartInspector
 			{ "r20 battery box(Clone)", TrackerType.Quantity },
 			{ "fuse package(Clone)", TrackerType.Quantity },
 
-			{ "sausages(itemx)", new FreshnessInfo(MaxFreshness: 100) },
-			{ "pizza(itemx)", new FreshnessInfo(MaxFreshness: 100) },
-			{ "macaron box(itemx)", new FreshnessInfo(MaxFreshness: 100) },
-			{ "milk(itemx)", new FreshnessInfo(MaxFreshness: 100) },
+			{ "sausages(itemx)", new FreshnessInfo(100) },
+			{ "pizza(itemx)", new FreshnessInfo(100) },
+			{ "macaron box(itemx)", new FreshnessInfo(100) },
+			{ "milk(itemx)", new FreshnessInfo(100) },
+
+			{ "moose meat(itemx)", new FreshnessInfo(40, true, 100) },
+			{ "grilled moose meat(itemx)", new FreshnessInfo(100) },
 		};
 
 		/// <summary>
@@ -417,8 +426,39 @@ namespace Ceres.PartInspector
 		private static readonly Dictionary<string, object> _mscObjectNames = new Dictionary<string, object>()
 		{
 			{ "fire extinguisher(itemx)", new FullnessInfo("Use", MaxValue: 100f ) },
-			{ "spark plug(Clone)", TrackerType.MSC_SparkPlug },
-			{ "oil filter(Clone)", TrackerType.OilFilter },
+
+			{ "spark plug(Clone)", new SingleValueInfo("Use", "Wear", "Condition", new Dictionary<float, string>()
+			{
+				{ 90, "In mint condition" },
+				{ 80, "In great condition" },
+				{ 65, "In good condition" },
+				{ 50, "In decent condition" },
+				{ 35, "In shoddy condition" },
+				{ 25, "In poor condition" },
+				{ 15, "In bad condition" },
+				{ 0, "In terrible condition" },
+			}) },
+			// essentially every car part in MSC (oil filters don't count!!) track wear as a descending value, with 100% condition being maximum
+			// and then this jerk comes along and tracks it ascending instead
+			{ "alternator belt(Clone)", new SingleValueInfo("Use", "Wear", "Worn", new Dictionary<float, string>()
+			{
+				{ 90, "In terrible condition" },
+				{ 80, "In bad condition" },
+				{ 65, "In poor condition" },
+				{ 50, "In shoddy condition" },
+				{ 35, "In decent condition" },
+				{ 25, "In good condition" },
+				{ 15, "In great condition" },
+				{ 0, "In mint condition" },
+			}) },
+			{ "oil filter(Clone)", new SingleValueInfo("Use", "Dirt", "Dirty", new Dictionary<float, string>()
+			{
+				{ 80, "Filthy" },
+				{ 60, "Dirty" },
+				{ 40, "Grimy" },
+				{ 20, "Clean" },
+				{ 0, "Brand new" },
+			}) },
 
 			{ "block(Clone)", TrackerType.IntactOrBroken },
 			{ "oilpan(Clone)", TrackerType.IntactOrBroken },
@@ -437,7 +477,8 @@ namespace Ceres.PartInspector
 			{ "starter(Clone)", "Starter" },
 			{ "water pump(Clone)", "Waterpump" },
 
-			{ "pike(itemx)", new FreshnessInfo(MaxFreshness: 40) },
+			{ "pike(itemx)", new FreshnessInfo(40, true, 100) },
+			{ "grilled pike (itemx)", new FreshnessInfo(100) },
 		};
 
 		/// <summary>
@@ -654,7 +695,6 @@ namespace Ceres.PartInspector
 				bool tryPartLookup = true;
 				TrackerType? trackerTypeOverride = null;
 
-#warning later TODO: generalize this as a heuristic
 				if (!IsMSC)
 				{
 					PlayMakerFSM dataFsm = PlayMakerExtensions.GetPlayMaker(lookedObj, "Data");
@@ -969,6 +1009,8 @@ namespace Ceres.PartInspector
 					tt = !vi.AlsoTracksWear ? TrackerType.MWC_Variant : TrackerType.MWC_VariantAndWear;
 				else if (trackerInfo is FreshnessInfo)
 					tt = TrackerType.Freshness;
+				else if (trackerInfo is SingleValueInfo)
+					tt = TrackerType.SingleValue;
 				PrintToConsole($"Creating tracker on game object {gameObj} with type: {tt}", ConsoleMessageScope.NewTrackers);
 				switch (tt)
 				{
@@ -1076,16 +1118,14 @@ namespace Ceres.PartInspector
 						bwt = frt;
 						frt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Use").FsmVariables, fri);
 						break;
-
-					#region MSC-exclusive trackers
-					case TrackerType.MSC_SparkPlug:
+					case TrackerType.SingleValue:
 						if (!SettingShowCarPartCondition.GetValue())
 							break;
-						MSC_SparkPlugTracker spt = gameObj.AddComponent<MSC_SparkPlugTracker>();
-						spt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, "Use").FsmVariables);
-						bwt = spt;
+						SingleValueInfo svi = (SingleValueInfo)trackerInfo;
+						SingleValueTracker svt = gameObj.AddComponent<SingleValueTracker>();
+						svt.Initialize(gameObj.name, PlayMakerExtensions.GetPlayMaker(gameObj, svi.SingleValueFsm).FsmVariables, svi);
+						bwt = svt;
 						break;
-					#endregion
 
 					#region MWC-exclusive trackers
 					case TrackerType.MWC_Variant:

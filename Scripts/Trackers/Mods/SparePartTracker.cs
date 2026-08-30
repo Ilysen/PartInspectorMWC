@@ -114,7 +114,7 @@ namespace Ceres.PartInspector.Trackers
 						newText = "Intact";
 						break;
 					default: // Exact percentage
-						newText = Mathf.RoundToInt(WearVal) + "%";
+						newText = Mathf.RoundToInt(WearVal) + "% condition";
 						break;
 				}
 			}
