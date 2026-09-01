@@ -32,7 +32,7 @@ namespace Ceres.PartInspector
 		public override string ID => "Ceres_PartInspector";
 		public override string Name => "Part Inspector";
 		public override string Author => "Ceres et al.";
-		public override string Version => "2.0.3";
+		public override string Version => "2.1.0";
 		public override string Description => "Inspect your parts! (And containers and filters and bolts and…)";
 		public override Game SupportedGames => Game.MySummerCar_And_MyWinterCar;
 
@@ -58,6 +58,7 @@ namespace Ceres.PartInspector
 		internal static SettingsCheckBox SettingShowWheelAlignment;
 		internal static SettingsCheckBox SettingShowValveClearance;
 		internal static SettingsCheckBox SettingShowSuspensionTuning;
+		internal static SettingsCheckBox SettingShowCarbTuning;
 
 		internal static SettingsCheckBox SettingLogVerification;
 		internal static SettingsCheckBox SettingLogNewTrackers;
@@ -123,6 +124,9 @@ namespace Ceres.PartInspector
 			SettingShowSuspensionTuning = Settings.AddCheckBox(nameof(SettingShowSuspensionTuning), "Show rally suspension tuning", false,
 				() => _showSuspensionTuning = SettingShowSuspensionTuning.GetValue());
 			Settings.AddText("Shows the percentage of bump/rebound tuning on rally suspensions. (You can already see the position of the knob for these; this just makes it quick and easy, instead of having to measure the amount of ticks from max you are.)");
+			SettingShowCarbTuning = Settings.AddCheckBox(nameof(SettingShowSuspensionTuning), "Show carburetor screw tightness", false,
+				() => _showCarbTuning = SettingShowCarbTuning.GetValue());
+			Settings.AddText("Intended for the racing carb. Only shows tightness percentage, not the resulting AFR -- you'll still need to find the \"correct\" values yourself.");
 			if (IsMWC)
 			{
 				SettingShowBoltSizes = Settings.AddCheckBox(nameof(SettingShowBoltSizes), "Show bolt sizes", false,
@@ -264,6 +268,11 @@ namespace Ceres.PartInspector
 		private bool _showSuspensionTuning;
 
 		/// <summary>
+		/// Cached reference to the value of <see cref="SettingShowCarbTuning"/>.
+		/// </summary>
+		private bool _showCarbTuning;
+
+		/// <summary>
 		/// Cached reference to the value of <see cref="SettingBoltSizePrecision"/>.
 		/// </summary>
 		private int _boltSizeMode = 3;
@@ -298,11 +307,6 @@ namespace Ceres.PartInspector
 		#endregion
 
 		#region MSC-exclusive
-		/// <summary>
-		/// MSC-exclusive. The cleanest way to track bolt size is to view this variable, which is attached to the wrench itself.
-		/// </summary>
-		private FsmFloat _mscCurBoltSize;
-
 		/// <summary>
 		/// Only needed for MSC, which tracks all of its part wear data as an FSM attached to the Satsuma itself.
 		/// </summary>
@@ -614,7 +618,6 @@ namespace Ceres.PartInspector
 
 				if (IsMSC)
 				{
-					_mscCurBoltSize = wrenchRaycast.GetPlayMaker("Check").FsmVariables.GetFsmFloat("BoltSize");
 					PrintToConsole("Fetching Satsuma part data…", ConsoleMessageScope.Core);
 					_mscSatsumaVars = PlayMakerExtensions.GetPlayMaker(GameObject.
 						Find("SATSUMA(557kg, 248)").transform.
@@ -633,6 +636,7 @@ namespace Ceres.PartInspector
 				_showWheelAlignment = SettingShowWheelAlignment.GetValue();
 				_showValveClearance = SettingShowValveClearance.GetValue();
 				_showSuspensionTuning = SettingShowSuspensionTuning.GetValue();
+				_showCarbTuning = SettingShowCarbTuning.GetValue();
 				_logNewTrackers = SettingLogNewTrackers.GetValue();
 				_logVerification = SettingLogVerification.GetValue();
 				_logBoltSize = SettingLogBoltSize.GetValue();
@@ -782,15 +786,18 @@ namespace Ceres.PartInspector
 			try
 			{
 				if (!_toolMode.Value)
+				{
+					_lastBoltInspected = null;
+					_boltSizeText = string.Empty;
 					return;
+				}
 				// step 1: preliminary checks. is it the same bolt as last time (allowing us to skip extra math)? is it even a bolt?
 				PrintToConsole("Inspecting bolts…", ConsoleMessageScope.BoltInspection);
 				if (!_curBolt.Value)
 				{
 					PrintToConsole("…Returning because there's no bolt.", ConsoleMessageScope.BoltInspection);
 					_lastBoltInspected = null;
-					if (_boltSizeText != string.Empty)
-						_boltSizeText = string.Empty;
+					_boltSizeText = string.Empty;
 					return;
 				}
 				if (_curBolt.Value == _lastBoltInspected) // we're lookin at it -- show the text
@@ -818,7 +825,9 @@ namespace Ceres.PartInspector
 					PrintToConsole("…Bolt values are null. Returning.", ConsoleMessageScope.BoltInspection);
 					return;
 				}
-				float? boltSize = IsMSC ? _mscCurBoltSize.Value : boltVals?.GetFsmFloat("Boltsize").Value;
+				// MSC handles bolt size by consulting the actual scale of the object within tolerance of 0.02 or so, so we round it to do the same thing
+				// MWC by comparison is actually sane and just has each bolt's size as a standalone value on their FSMs
+				float? boltSize = IsMSC ? (float?)Math.Round(_curBolt.Value.transform.localScale.x, 3) : boltVals?.GetFsmFloat("Boltsize").Value;
 				if (boltSize == null)
 				{
 					PrintToConsole("…Bolt size is null. Returning.", ConsoleMessageScope.BoltInspection);
@@ -837,7 +846,8 @@ namespace Ceres.PartInspector
 					PrintToConsole("…Tool size is correct. Checking tuning…", ConsoleMessageScope.BoltInspection);
 					if (_showValveClearance && DisplayValveLash() ||
 						_showSuspensionTuning && DisplaySuspensionValues() ||
-						_showWheelAlignment && DisplayWheelAlignment())
+						_showWheelAlignment && DisplayWheelAlignment() ||
+						_showCarbTuning && DisplayCarbTuning())
 					{
 						// set the last bolt to null so we refresh in realtime, or else the tuning changes won't be visible
 						_lastBoltInspected = null;
@@ -941,6 +951,21 @@ namespace Ceres.PartInspector
 					alignment = (float)Math.Round(alignment, 2);
 					toDisplay = $"Wheel angle: {alignment} degrees";
 					PrintToConsole($"…We're looking at a wheel. Displaying alignment.", ConsoleMessageScope.BoltInspection);
+					return true;
+				}
+
+				bool DisplayCarbTuning()
+				{
+					if (boltSize != 0.65f || boltVals.FindFsmString("IdleAdjust") == null)
+						return false;
+					var alignment = boltVals.FindFsmFloat("Alignment").Value;
+					var max = boltVals.FindFsmFloat("Max").Value;
+					var min = boltVals.FindFsmFloat("Min").Value;
+					alignment -= min;
+					max -= min;
+					alignment = (float)Math.Round((alignment / max) * 100);
+					toDisplay = $"Idle screw - {alignment}% tightness";
+					PrintToConsole($"…We're looking at an idle screw. Displaying tightness.", ConsoleMessageScope.BoltInspection);
 					return true;
 				}
 
