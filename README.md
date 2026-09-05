@@ -6,21 +6,20 @@ Part Inspector is licensed under the [GNU General Public License v3](http://www.
 
 ## Changelog
 
-### TBD
+### 5 September, 2026
 #### Version 2.1.0
-* Added a new tuning setting that displays tightness of carburetor screws. This is intended primarily for syncing up the screws on the racing carb; it only shows tightness percentage, not resulting AFR, so you will still need to find the "correct" values yourself.
+* Added a new tuning setting that displays tightness of carburetor screws. This is intended primarily for syncing up the screws on the racing carb; it only shows tightness percentage and not the resulting AFR, so you will still need to find the "correct" values yourself.
 * Adjustments related to freshness trackers:
-	* Now correctly use item precision rather than part precision.
+	* Now correctly use the item precision setting rather than part precision.
 	* Now track moose meat and grilled pike.
-	* "General description" thresholds adjusted:
+	* "General description" thresholds adjusted to have more precision:
 		* Fresh: 100% to 70%
 		* Good: 70% to 50%
 		* Fine: 50% to 30%
 		* Stale: 30% to 10%
 		* Moldy: 10% and below
 * The "exact information" readout for car parts is now labeled as "% condition", instead of just "%".
-* Attempted to make bolt size readout for the MSC version more stable. It still remains experimental for now, though.
-* Fixed alternator belts having no condition readout.
+* Attempted to fix the bolt size readout for the MSC version. It still remains in the experimental menu until I can confirm it works good for sure, but it should be much more stable.
 * Internal refactor to handling for spark plugs, alternator belts, and oil filters. Functionality should be unchanged, but let me know if there's issues.
 
 ### 25 August, 2026
