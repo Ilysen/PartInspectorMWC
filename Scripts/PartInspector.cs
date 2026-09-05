@@ -124,7 +124,7 @@ namespace Ceres.PartInspector
 			SettingShowSuspensionTuning = Settings.AddCheckBox(nameof(SettingShowSuspensionTuning), "Show rally suspension tuning", false,
 				() => _showSuspensionTuning = SettingShowSuspensionTuning.GetValue());
 			Settings.AddText("Shows the percentage of bump/rebound tuning on rally suspensions. (You can already see the position of the knob for these; this just makes it quick and easy, instead of having to measure the amount of ticks from max you are.)");
-			SettingShowCarbTuning = Settings.AddCheckBox(nameof(SettingShowSuspensionTuning), "Show carburetor screw tightness", false,
+			SettingShowCarbTuning = Settings.AddCheckBox(nameof(SettingShowCarbTuning), "Show carburetor screw tightness", false,
 				() => _showCarbTuning = SettingShowCarbTuning.GetValue());
 			Settings.AddText("Intended for the racing carb. Only shows tightness percentage, not the resulting AFR -- you'll still need to find the \"correct\" values yourself.");
 			if (IsMWC)
@@ -255,7 +255,6 @@ namespace Ceres.PartInspector
 		/// Cached reference to the value of <see cref="SettingShowValveClearance"/>.
 		/// </summary>
 		private bool _showValveClearance;
-
 
 		/// <summary>
 		/// Cached reference to the value of <see cref="SettingShowWheelAlignment"/>.
@@ -844,6 +843,10 @@ namespace Ceres.PartInspector
 				if (toolSize == boltSize)
 				{
 					PrintToConsole("…Tool size is correct. Checking tuning…", ConsoleMessageScope.BoltInspection);
+					// this kinda sucks, but in essence what it's doing is running through each possible tuning step in order
+					// if any of the Display functions return true, it will immediate terminate and display the final display text instead,
+					// as that signals that the tuning is correctly displaying something
+					// in an ideal world these would be easily extensible instead of hardcoded local functions but hey, nobody's grading me here
 					if (_showValveClearance && DisplayValveLash() ||
 						_showSuspensionTuning && DisplaySuspensionValues() ||
 						_showWheelAlignment && DisplayWheelAlignment() ||
